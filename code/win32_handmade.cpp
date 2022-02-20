@@ -56,8 +56,7 @@ internal void RenderWeirdGradient(win32_offscreen_buffer Buffer, int XOffset, in
   }
 }
 
-internal void Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
-
+internal void InitializeGlobalBackBuffer(win32_offscreen_buffer* Buffer, int Width, int Height) {
   if (Buffer->Memory) {
     VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
   }
@@ -80,7 +79,7 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, i
   RenderWeirdGradient(GlobalBackBuffer, 0, 0);
 }
 
-internal void Win32DisplayBufferInWindow(HDC DeviceContext, win32_window_dimensions WinDims, win32_offscreen_buffer Buffer, int X, int Y, int Width, int Height) {
+internal void Win32DisplayBufferInWindow(HDC DeviceContext, win32_window_dimensions WinDims, win32_offscreen_buffer Buffer) {
   StretchDIBits(
     DeviceContext,
     0, 0, WinDims.Width, WinDims.Height,
@@ -126,15 +125,8 @@ LRESULT CALLBACK Win32MainWindowCallback(
     {
       PAINTSTRUCT Paint;
       HDC DeviceContext = BeginPaint(Window, &Paint);
-      int X = Paint.rcPaint.left;
-      int Y = Paint.rcPaint.top;
-      int Width = Paint.rcPaint.right - X;
-      int Height = Paint.rcPaint.bottom - Y;
-
       win32_window_dimensions windims = GetWindowDimensions(Window);
-
-      Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer, X, Y, Width, Height);
-
+      Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer);
       EndPaint(Window, &Paint);
     }
     break;
@@ -155,7 +147,7 @@ int WINAPI wWinMain(
 
   WNDCLASS WindowClass = {};
 
-  Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
+  InitializeGlobalBackBuffer(&GlobalBackBuffer, 1280, 720);
 
   WindowClass.style = CS_OWNDC|CS_HREDRAW|CS_VREDRAW;
   WindowClass.lpfnWndProc = Win32MainWindowCallback;
@@ -181,9 +173,9 @@ int WINAPI wWinMain(
 
     if (WindowHandle) {
       int XOffset = 0, YOffset = 0;
-      MSG Message;
       Running = true;
       while(Running) {
+        MSG Message;
         BOOL MessageResult = PeekMessageA(&Message, 0, 0, 0, PM_REMOVE);
         if (MessageResult) {
           if (Message.message == WM_QUIT) {
@@ -193,10 +185,11 @@ int WINAPI wWinMain(
           DispatchMessage(&Message);
         }  
         RenderWeirdGradient(GlobalBackBuffer, XOffset++, YOffset++);
+        win32_window_dimensions windims = GetWindowDimensions(WindowHandle);
+        // AcqRelease DeviceContext
         {
           HDC DeviceContext = GetDC(WindowHandle);
-          win32_window_dimensions windims = GetWindowDimensions(WindowHandle);
-          Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer, 0, 0, windims.Width, windims.Height);
+          Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer);
           ReleaseDC(WindowHandle, DeviceContext);
         }
       }
