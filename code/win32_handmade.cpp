@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdint.h>
+#include <xinput.h>
 
 #define internal static;
 #define local_persist static;
@@ -26,11 +27,53 @@ struct win32_offscreen_buffer {
 
 global_variable bool Running;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
+global_variable int XOffset = 0, YOffset = 0;
 
 struct win32_window_dimensions {
   int Width;
   int Height;
 };
+
+/*
+#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState);
+typedef X_INPUT_GET_STATE(x_input_get_state);
+X_INPUT_GET_STATE(xInputGetStateStub) {
+  return 0;
+}
+global_variable x_input_get_state *XInputGetState_ = xInputGetStateStub;
+#define XInputGetState XInputGetState_;
+
+#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
+typedef X_INPUT_SET_STATE(x_input_set_state);
+X_INPUT_SET_STATE(xInputSetStateStub) {
+  return 0;
+}
+global_variable x_input_set_state *XInputSetState_ = xInputSetStateStub;
+#define XInputSetState XInputSetState_;
+*/
+
+typedef DWORD WINAPI x_input_get_state(DWORD dwUserIndex, XINPUT_STATE *pState);
+DWORD WINAPI xInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE *pState) {
+  return 0;
+}
+global_variable x_input_get_state *XInputGetState_ = xInputGetStateStub;
+#define XInputGetState XInputGetState_
+
+typedef DWORD WINAPI x_input_set_state(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
+DWORD WINAPI xInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration) {
+  return 0;
+}
+global_variable x_input_set_state *XInputSetState_ = xInputSetStateStub;
+#define XInputSetState XInputSetState_
+
+internal void
+Win32LoadXInput() {
+  HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
+  if (XInputLibrary) {
+    XInputGetState = (x_input_get_state *)GetProcAddress(XInputLibrary, "XInputGetState");
+    XInputSetState = (x_input_set_state *)GetProcAddress(XInputLibrary, "XInputSetState");
+  }
+}
 
 win32_window_dimensions GetWindowDimensions(HWND Window) {
   win32_window_dimensions Result;
@@ -121,6 +164,41 @@ LRESULT CALLBACK Win32MainWindowCallback(
       OutputDebugString("WM_ACTIVATEAPP\n");
     }
     break;
+    case WM_SYSKEYDOWN:
+    case WM_SYSKEYUP:
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    {
+      uint32 VKCode = wParam;
+      bool wasDown = (lParam & (1 << 30)) != 0;
+      bool IsDown = (lParam & (1 << 30)) == 0;
+      if (VKCode == 'W') {
+
+      } else if (VKCode == 'A') {
+        XOffset -= 10;
+      } else if (VKCode == 'S') {
+
+      } else if (VKCode == 'D') {
+        XOffset += 10;
+      } else if (VKCode == 'Q') {
+
+      } else if (VKCode == 'E') {
+
+      } else if (VKCode == VK_UP) {
+
+      } else if (VKCode == VK_DOWN) {
+
+      } else if (VKCode == VK_LEFT) {
+
+      } else if (VKCode == VK_RIGHT) {
+
+      } else if (VKCode == VK_SPACE) {
+
+      } else if (VKCode == VK_ESCAPE) {
+
+      }
+    }
+    break;
     case WM_PAINT:
     {
       PAINTSTRUCT Paint;
@@ -144,6 +222,8 @@ int WINAPI wWinMain(
   HINSTANCE PrevInstance, 
   PWSTR CommandLine, 
   int ShowCode) {
+
+  Win32LoadXInput();
 
   WNDCLASS WindowClass = {};
 
@@ -172,7 +252,6 @@ int WINAPI wWinMain(
     );
 
     if (WindowHandle) {
-      int XOffset = 0, YOffset = 0;
       Running = true;
       while(Running) {
         MSG Message;
@@ -184,7 +263,33 @@ int WINAPI wWinMain(
           TranslateMessage(&Message);
           DispatchMessage(&Message);
         }  
-        RenderWeirdGradient(GlobalBackBuffer, XOffset++, YOffset++);
+
+        DWORD dwResult;    
+        for (DWORD i=0; i< XUSER_MAX_COUNT; i++ )
+        {
+            XINPUT_STATE state;
+            ZeroMemory( &state, sizeof(XINPUT_STATE) );
+
+            // Simply get the state of the controller from XInput.
+            dwResult = XInputGetState( i, &state );
+
+            if( dwResult == ERROR_SUCCESS )
+            {
+              // Controller is connected
+              XINPUT_GAMEPAD *Pad = &state.Gamepad;
+              bool DPadUp = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP); 
+
+              if (DPadUp) {
+                XOffset++;
+              }
+            }
+            else
+            {
+                // Controller is not connected
+            }
+        }
+
+        RenderWeirdGradient(GlobalBackBuffer, XOffset, YOffset++);
         win32_window_dimensions windims = GetWindowDimensions(WindowHandle);
         // AcqRelease DeviceContext
         {
