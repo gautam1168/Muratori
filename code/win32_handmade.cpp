@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <stdint.h>
 #include <xinput.h>
+#include <dsound.h>
 
 #define internal static;
 #define local_persist static;
@@ -28,40 +29,23 @@ struct win32_offscreen_buffer {
 global_variable bool Running;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable int XOffset = 0, YOffset = 0;
+global_variable LPDIRECTSOUNDBUFFER SecondaryBuffer;
 
 struct win32_window_dimensions {
   int Width;
   int Height;
 };
 
-/*
-#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState);
-typedef X_INPUT_GET_STATE(x_input_get_state);
-X_INPUT_GET_STATE(xInputGetStateStub) {
-  return 0;
-}
-global_variable x_input_get_state *XInputGetState_ = xInputGetStateStub;
-#define XInputGetState XInputGetState_;
-
-#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
-typedef X_INPUT_SET_STATE(x_input_set_state);
-X_INPUT_SET_STATE(xInputSetStateStub) {
-  return 0;
-}
-global_variable x_input_set_state *XInputSetState_ = xInputSetStateStub;
-#define XInputSetState XInputSetState_;
-*/
-
 typedef DWORD WINAPI x_input_get_state(DWORD dwUserIndex, XINPUT_STATE *pState);
 DWORD WINAPI xInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE *pState) {
-  return 0;
+  return ERROR_DEVICE_NOT_CONNECTED;
 }
 global_variable x_input_get_state *XInputGetState_ = xInputGetStateStub;
 #define XInputGetState XInputGetState_
 
 typedef DWORD WINAPI x_input_set_state(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
 DWORD WINAPI xInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration) {
-  return 0;
+  return ERROR_DEVICE_NOT_CONNECTED;
 }
 global_variable x_input_set_state *XInputSetState_ = xInputSetStateStub;
 #define XInputSetState XInputSetState_
@@ -72,6 +56,52 @@ Win32LoadXInput() {
   if (XInputLibrary) {
     XInputGetState = (x_input_get_state *)GetProcAddress(XInputLibrary, "XInputGetState");
     XInputSetState = (x_input_set_state *)GetProcAddress(XInputLibrary, "XInputSetState");
+  }
+}
+
+typedef HRESULT WINAPI direct_sound_create(LPGUID lpGuid, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
+
+internal void Wind32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize) {
+  HMODULE DSoundLibrary = LoadLibraryA("dsound.dll");
+
+  if (DSoundLibrary) {
+    direct_sound_create *DirectSoundCreate = (direct_sound_create *) GetProcAddress(DSoundLibrary, "DirectSoundCreate");
+    LPDIRECTSOUND DirectSound;
+    if (DirectSoundCreate && SUCCEEDED(DirectSoundCreate(0, &DirectSound, 0))) {
+      WAVEFORMATEX WaveFormat = {};
+      WaveFormat.wFormatTag = WAVE_FORMAT_PCM;
+      WaveFormat.nChannels = 2;
+      WaveFormat.nSamplesPerSec = SamplesPerSecond;
+      WaveFormat.wBitsPerSample = 16;
+      WaveFormat.nBlockAlign = (WaveFormat.nChannels * WaveFormat.wBitsPerSample)/8;
+      WaveFormat.nAvgBytesPerSec = WaveFormat.nSamplesPerSec * WaveFormat.nBlockAlign;
+      WaveFormat.cbSize = 0;
+
+      if (SUCCEEDED(DirectSound->SetCooperativeLevel(Window, DSSCL_PRIORITY))) {
+        DSBUFFERDESC BufferDescription = {};
+        BufferDescription.dwSize = sizeof(BufferDescription);
+        BufferDescription.dwFlags = DSBCAPS_PRIMARYBUFFER;
+
+        LPDIRECTSOUNDBUFFER PrimaryBuffer;
+        if (SUCCEEDED(DirectSound->CreateSoundBuffer(&BufferDescription,  &PrimaryBuffer, 0))) {
+          if (SUCCEEDED(PrimaryBuffer->SetFormat(&WaveFormat))) {
+
+          } else {
+            OutputDebugString("Failed to set wave format");
+          }
+        }
+      }
+      DSBUFFERDESC BufferDescription= {};
+      BufferDescription.dwSize = sizeof(BufferDescription);
+      BufferDescription.dwFlags = 0;
+      BufferDescription.dwBufferBytes = BufferSize;
+      BufferDescription.lpwfxFormat = &WaveFormat;
+      if (SUCCEEDED(DirectSound->CreateSoundBuffer(&BufferDescription, &SecondaryBuffer, 0))) {
+
+      } else {
+        OutputDebugString("Failed to create secondary buffer");
+      }
+    }
   }
 }
 
@@ -197,6 +227,11 @@ LRESULT CALLBACK Win32MainWindowCallback(
       } else if (VKCode == VK_ESCAPE) {
 
       }
+
+      bool AltKeyWasDown = (lParam & (1 << 29)) != 0; 
+      if (VKCode == VK_F4) {
+        Running = false;
+      }
     }
     break;
     case WM_PAINT:
@@ -236,7 +271,7 @@ int WINAPI wWinMain(
   WindowClass.lpszClassName = "HandmadeHeroWindowClass";
   
   if (RegisterClassA(&WindowClass)) {
-    HWND WindowHandle = CreateWindowExA(
+    HWND Window = CreateWindowExA(
       0,
       WindowClass.lpszClassName,
       "Handmade Hero",
@@ -251,8 +286,20 @@ int WINAPI wWinMain(
       0
     );
 
-    if (WindowHandle) {
+    if (Window) {
       Running = true;
+
+      int SamplesPerSecond = 48000;
+      int Hz = 256;
+      uint32 RunningSampleIndex = 0;
+      int SquareWaveCounter = 0;
+      int SquareWavePeriod = SamplesPerSecond/Hz;
+      int BytesPerSample = sizeof(int16)*2;
+      int SecondaryBufferSize = SamplesPerSecond * BytesPerSample;
+
+      Wind32InitDSound(Window, SamplesPerSecond, SecondaryBufferSize);
+      SecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+      
       while(Running) {
         MSG Message;
         BOOL MessageResult = PeekMessageA(&Message, 0, 0, 0, PM_REMOVE);
@@ -290,12 +337,53 @@ int WINAPI wWinMain(
         }
 
         RenderWeirdGradient(GlobalBackBuffer, XOffset, YOffset++);
-        win32_window_dimensions windims = GetWindowDimensions(WindowHandle);
+        DWORD PlayCursor;
+        DWORD WriteCursor;
+        if (SUCCEEDED(SecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor))) {
+          DWORD ByteToLock = RunningSampleIndex * BytesPerSample % SecondaryBufferSize;
+          // DWORD WritePointer;
+          DWORD BytesToWrite;
+
+          if (ByteToLock > PlayCursor) {
+            BytesToWrite = SecondaryBufferSize - ByteToLock;
+            BytesToWrite += PlayCursor; 
+          } else {
+            BytesToWrite = PlayCursor - ByteToLock;
+          }
+
+          VOID *Region1;
+          DWORD Region1Size;
+          VOID *Region2;
+          DWORD Region2Size;
+
+          if (SUCCEEDED(SecondaryBuffer->Lock(ByteToLock, BytesToWrite, &Region1, &Region1Size, &Region2, &Region2Size, 0 ))) {
+            int16 *SampleOut = (int16 *)Region1;
+            DWORD Region1SampleCount = Region1Size/BytesPerSample;
+            DWORD Region2SampleCount = Region2Size/BytesPerSample;
+            for (DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex) {
+              int16 SampleValue = ((RunningSampleIndex / (SquareWavePeriod/2)) % 2) ? 600 : -600;
+              *SampleOut++ = SampleValue;
+              *SampleOut++ = SampleValue;
+              ++RunningSampleIndex;
+            }
+
+            SampleOut = (int16 *)Region2;
+            for (DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex) {
+              int16 SampleValue = (RunningSampleIndex / (SquareWavePeriod/2)) % 2 ? 600 : -600;
+              *SampleOut++ = SampleValue;
+              *SampleOut++ = SampleValue;
+              ++RunningSampleIndex;
+            }
+            SecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
+          }
+        }
+        
+        win32_window_dimensions windims = GetWindowDimensions(Window);
         // AcqRelease DeviceContext
         {
-          HDC DeviceContext = GetDC(WindowHandle);
+          HDC DeviceContext = GetDC(Window);
           Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer);
-          ReleaseDC(WindowHandle, DeviceContext);
+          ReleaseDC(Window, DeviceContext);
         }
       }
     } else {
@@ -306,6 +394,5 @@ int WINAPI wWinMain(
     OutputDebugString("Registration of window failed");
   }
   
-
   return 0;
 }
