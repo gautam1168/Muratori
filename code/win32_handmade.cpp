@@ -2,10 +2,13 @@
 #include <stdint.h>
 #include <xinput.h>
 #include <dsound.h>
+#include <math.h>
 
-#define internal static;
-#define local_persist static;
-#define global_variable static;
+#define internal static
+#define local_persist static
+#define global_variable static
+
+#define Pi32 3.14159265359f
 
 typedef uint8_t  uint8;
 typedef uint16_t uint16;
@@ -17,6 +20,9 @@ typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
 
+typedef float real32;
+typedef double real64;
+
 struct win32_offscreen_buffer {
   BITMAPINFO BitmapInfo;
   void* Memory;
@@ -26,7 +32,7 @@ struct win32_offscreen_buffer {
   int Pitch;
 };
 
-global_variable bool Running;
+global_variable bool Running, SoundIsPlaying;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable int XOffset = 0, YOffset = 0;
 global_variable LPDIRECTSOUNDBUFFER SecondaryBuffer;
@@ -293,12 +299,11 @@ int WINAPI wWinMain(
       int Hz = 256;
       uint32 RunningSampleIndex = 0;
       int SquareWaveCounter = 0;
-      int SquareWavePeriod = SamplesPerSecond/Hz;
+      int WavePeriod = SamplesPerSecond/Hz;
       int BytesPerSample = sizeof(int16)*2;
       int SecondaryBufferSize = SamplesPerSecond * BytesPerSample;
 
       Wind32InitDSound(Window, SamplesPerSecond, SecondaryBufferSize);
-      SecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
       
       while(Running) {
         MSG Message;
@@ -339,11 +344,14 @@ int WINAPI wWinMain(
         RenderWeirdGradient(GlobalBackBuffer, XOffset, YOffset++);
         DWORD PlayCursor;
         DWORD WriteCursor;
-        if (SUCCEEDED(SecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor))) {
-          DWORD ByteToLock = RunningSampleIndex * BytesPerSample % SecondaryBufferSize;
+        if (!SoundIsPlaying && SUCCEEDED(SecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor))) {
+          DWORD ByteToLock = (RunningSampleIndex * BytesPerSample) % SecondaryBufferSize;
           // DWORD WritePointer;
           DWORD BytesToWrite;
 
+          if (ByteToLock == PlayCursor) {
+            BytesToWrite = 0;
+          } else 
           if (ByteToLock > PlayCursor) {
             BytesToWrite = SecondaryBufferSize - ByteToLock;
             BytesToWrite += PlayCursor; 
@@ -361,7 +369,9 @@ int WINAPI wWinMain(
             DWORD Region1SampleCount = Region1Size/BytesPerSample;
             DWORD Region2SampleCount = Region2Size/BytesPerSample;
             for (DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex) {
-              int16 SampleValue = ((RunningSampleIndex / (SquareWavePeriod/2)) % 2) ? 600 : -600;
+              real32 t = (2.0f * Pi32) * (real32)RunningSampleIndex/(real32)WavePeriod; 
+              real32 SineValue = sinf(t);
+              real32 SampleValue = (int16)(SineValue * 600);
               *SampleOut++ = SampleValue;
               *SampleOut++ = SampleValue;
               ++RunningSampleIndex;
@@ -369,7 +379,9 @@ int WINAPI wWinMain(
 
             SampleOut = (int16 *)Region2;
             for (DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex) {
-              int16 SampleValue = (RunningSampleIndex / (SquareWavePeriod/2)) % 2 ? 600 : -600;
+              real32 t = (2.0f * Pi32) * (real32)RunningSampleIndex/(real32)WavePeriod; 
+              real32 SineValue = sinf(t);
+              real32 SampleValue = (int16)(SineValue * 600);
               *SampleOut++ = SampleValue;
               *SampleOut++ = SampleValue;
               ++RunningSampleIndex;
@@ -377,7 +389,12 @@ int WINAPI wWinMain(
             SecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
           }
         }
+        if (!SoundIsPlaying) {
+          SecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+          SoundIsPlaying = false;
+        }
         
+
         win32_window_dimensions windims = GetWindowDimensions(Window);
         // AcqRelease DeviceContext
         {
