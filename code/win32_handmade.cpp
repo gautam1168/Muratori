@@ -276,6 +276,11 @@ int WINAPI wWinMain(
   // WindowClass.hIcon = ;
   WindowClass.lpszClassName = "HandmadeHeroWindowClass";
   
+  LARGE_INTEGER PerfCountFrequency;
+  QueryPerformanceFrequency(&PerfCountFrequency);
+
+  int64 LastCycleCount = __rdtsc();
+
   if (RegisterClassA(&WindowClass)) {
     HWND Window = CreateWindowExA(
       0,
@@ -304,6 +309,9 @@ int WINAPI wWinMain(
       int SecondaryBufferSize = SamplesPerSecond * BytesPerSample;
 
       Wind32InitDSound(Window, SamplesPerSecond, SecondaryBufferSize);
+
+      LARGE_INTEGER LastCounter;
+      QueryPerformanceCounter(&LastCounter);
       
       while(Running) {
         MSG Message;
@@ -402,6 +410,23 @@ int WINAPI wWinMain(
           Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer);
           ReleaseDC(Window, DeviceContext);
         }
+        LARGE_INTEGER EndCounter;
+        QueryPerformanceCounter(&EndCounter);
+
+        
+        int64 EndCycleCount = __rdtsc();
+
+        int64 CyclesElapsed = EndCycleCount - LastCycleCount;
+        int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+        int32 TimeElapsedMs = (int32)(1000*CounterElapsed/PerfCountFrequency.QuadPart);
+        int32 FPS = PerfCountFrequency.QuadPart / CounterElapsed;
+        int32 MCPF = (int32)(CyclesElapsed/(1000 * 1000));
+        
+        char Buffer[256];
+        wsprintf(Buffer, "Milliseconds/frame: %dms, FPS: %d, MCPF: %dmc/f\n", TimeElapsedMs, FPS, MCPF);
+        OutputDebugString(Buffer);
+        LastCounter = EndCounter;
+        LastCycleCount = EndCycleCount;
       }
     } else {
       OutputDebugString("No windowhandle was obtained from createWindow");
