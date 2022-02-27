@@ -23,6 +23,9 @@ typedef int64_t int64;
 typedef float real32;
 typedef double real64;
 
+#include "handmade.hpp"
+#include "handmade.cpp"
+
 struct win32_offscreen_buffer {
   BITMAPINFO BitmapInfo;
   void* Memory;
@@ -122,19 +125,6 @@ win32_window_dimensions GetWindowDimensions(HWND Window) {
   return Result;
 }
 
-internal void RenderWeirdGradient(win32_offscreen_buffer Buffer, int XOffset, int YOffset) {
-  uint8* Row = (uint8*) Buffer.Memory;
-  for (int Y = 0; Y < Buffer.Height; ++Y) {
-    uint32* Pixel = (uint32*) Row;
-    for (int X = 0; X < Buffer.Width; ++X) {
-      uint8 Blue = (X + XOffset);
-      uint8 Green = (Y + YOffset);
-      *Pixel++ = (Green << 8) | Blue;
-    }
-    Row += Buffer.Pitch;
-  }
-}
-
 internal void InitializeGlobalBackBuffer(win32_offscreen_buffer* Buffer, int Width, int Height) {
   if (Buffer->Memory) {
     VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
@@ -155,7 +145,7 @@ internal void InitializeGlobalBackBuffer(win32_offscreen_buffer* Buffer, int Wid
   int BitmapMemorySize = Buffer->BytesPerPixel * Width * Height;
   Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
 
-  RenderWeirdGradient(GlobalBackBuffer, 0, 0);
+  // RenderWeirdGradient(GlobalBackBuffer, 0, 0);
 }
 
 internal void Win32DisplayBufferInWindow(HDC DeviceContext, win32_window_dimensions WinDims, win32_offscreen_buffer Buffer) {
@@ -349,7 +339,13 @@ int WINAPI wWinMain(
             }
         }
 
-        RenderWeirdGradient(GlobalBackBuffer, XOffset, YOffset++);
+        game_offscreen_buffer Buffer = {};
+        Buffer.Memory = GlobalBackBuffer.Memory;
+        Buffer.Height = GlobalBackBuffer.Height;
+        Buffer.Width = GlobalBackBuffer.Width;
+        Buffer.Pitch = GlobalBackBuffer.Pitch;
+        GameUpdateAndRender(&Buffer, XOffset, YOffset);
+
         DWORD PlayCursor;
         DWORD WriteCursor;
         if (!SoundIsPlaying && SUCCEEDED(SecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor))) {
@@ -421,12 +417,14 @@ int WINAPI wWinMain(
         int32 TimeElapsedMs = (int32)(1000*CounterElapsed/PerfCountFrequency.QuadPart);
         int32 FPS = PerfCountFrequency.QuadPart / CounterElapsed;
         int32 MCPF = (int32)(CyclesElapsed/(1000 * 1000));
-        
+#if 0        
         char Buffer[256];
         wsprintf(Buffer, "Milliseconds/frame: %dms, FPS: %d, MCPF: %dmc/f\n", TimeElapsedMs, FPS, MCPF);
         OutputDebugString(Buffer);
         LastCounter = EndCounter;
         LastCycleCount = EndCycleCount;
+
+#endif
       }
     } else {
       OutputDebugString("No windowhandle was obtained from createWindow");
