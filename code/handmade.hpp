@@ -9,5 +9,11 @@ struct game_offscreen_buffer {
 
 internal void GameUpdateAndRender(game_offscreen_buffer *Buffer);
 
+struct game_sound_buffer {
+  int SamplesPerSecond;
+  int SampleCount;
+  int16 *Samples;
+};
+
 #define HANDMADE_HPP
 #endif
