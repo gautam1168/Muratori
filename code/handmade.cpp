@@ -4,7 +4,7 @@
 
 // Game -> Platform
 internal void GameOutputSound(game_sound_buffer *SoundBuffer) {
-  local_persist real32 tSine;
+  local_persist real32 tSine = 0.0f;
   int16 ToneVolume = 3000;
   int ToneHz = 256;
   int WavePeriod = SoundBuffer->SamplesPerSecond/ToneHz;
@@ -33,7 +33,29 @@ internal void RenderWeirdGradient(game_offscreen_buffer *Buffer, int XOffset, in
   }
 }
 
-internal void GameUpdateAndRender(game_offscreen_buffer *Buffer, int XOffset, int YOffset, game_sound_buffer *SoundBuffer) {
+internal void GameUpdateAndRender(
+  game_input *Input,
+  game_offscreen_buffer *Buffer, 
+  game_sound_buffer *SoundBuffer
+) {
+  local_persist int XOffset = 0;
+  local_persist int YOffset = 0;
+  local_persist int ToneHz = 256;
+  
+  game_controller_input *Input0 = &Input->Controllers[0];
+
+  if (Input0->IsAnalog) {
+    ToneHz = 256 + (int)(128.0f*(Input0->EndX));
+    YOffset += (int)4.0f*(Input0->EndY);
+  } else {
+
+  }
+
+  if (Input0->Down.EndedDown) {
+    XOffset += 1;
+  }
+  
+  
   GameOutputSound(SoundBuffer);
   RenderWeirdGradient(Buffer, XOffset, YOffset);
 }
