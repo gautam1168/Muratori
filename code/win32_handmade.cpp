@@ -101,13 +101,13 @@ Win32LoadXInput() {
 
 typedef HRESULT WINAPI direct_sound_create(LPGUID lpGuid, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
 
-internal void Win32ClearBuffer(win32_sound_output *SoundOutput) {
+internal void Win32ClearBuffer(win32_sound_output *SoundOutputL) {
   VOID *Region1;
   DWORD Region1Size;
   VOID *Region2;
   DWORD Region2Size;
 
-  if (SUCCEEDED(SecondaryBuffer->Lock(0, SoundOutput->SecondaryBufferSize, &Region1, &Region1Size, &Region2, &Region2Size, 0))) {
+  if (SUCCEEDED(SecondaryBuffer->Lock(0, SoundOutputL->SecondaryBufferSize, &Region1, &Region1Size, &Region2, &Region2Size, 0))) {
     uint8 *DestSample = (uint8 *)Region1;
     for (DWORD ByteIndex = 0; ByteIndex < Region1Size; ByteIndex++) {
       *DestSample++ = 0;
@@ -284,7 +284,7 @@ LRESULT CALLBACK Win32MainWindowCallback(
     case WM_KEYDOWN:
     case WM_KEYUP:
     {
-      uint32 VKCode = wParam;
+      uint32 VKCode = (uint32)wParam;
       bool wasDown = (lParam & (1 << 30)) != 0;
       bool IsDown = (lParam & (1 << 30)) == 0;
       if (VKCode == 'W') {
@@ -494,9 +494,9 @@ int WINAPI wWinMain(
               }
           }
 
-          DWORD ByteToLock;
+          DWORD ByteToLock = 0;
           DWORD TargetCursor;
-          DWORD BytesToWrite;
+          DWORD BytesToWrite = 0;
           DWORD PlayCursor;
           DWORD WriteCursor;
           bool SoundIsvalid = false;
@@ -549,7 +549,7 @@ int WINAPI wWinMain(
           int64 CyclesElapsed = EndCycleCount - LastCycleCount;
           int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
           int32 TimeElapsedMs = (int32)(1000*CounterElapsed/PerfCountFrequency.QuadPart);
-          int32 FPS = PerfCountFrequency.QuadPart / CounterElapsed;
+          int32 FPS = (int32)(PerfCountFrequency.QuadPart / CounterElapsed);
           int32 MCPF = (int32)(CyclesElapsed/(1000 * 1000));
 #if 0        
           char Buffer[256];

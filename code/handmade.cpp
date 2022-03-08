@@ -25,28 +25,13 @@ internal void RenderWeirdGradient(game_offscreen_buffer *Buffer, game_state *Gam
   for (int Y = 0; Y < Buffer->Height; ++Y) {
     uint32* Pixel = (uint32*) Row;
     for (int X = 0; X < Buffer->Width; ++X) {
-      uint8 Blue = (X + GameState->BlueOffset);
-      uint8 Green = (Y + GameState->GreenOffset);
+      uint8 Blue = (uint8)(X + GameState->BlueOffset);
+      uint8 Green = (uint8)(Y + GameState->GreenOffset);
       *Pixel++ = (Green << 8) | Blue;
     }
     Row += Buffer->Pitch;
   }
 }
-
-internal game_state * GameStartup() {
-  game_state *GameState = new game_state;
-  if (GameState) {
-    GameState->BlueOffset = 0;
-    GameState->GreenOffset = 0;
-    GameState->ToneHz = 256;
-  }
-  return GameState;
-}
-
-internal void GameShutDown(game_state *GameState) {
-  delete GameState;
-}
-
 
 inline uint32 SafeTruncateUint64(uint64 Value) {
   Assert(Value <= 0xFFFFFFFF);
@@ -68,6 +53,7 @@ internal void GameUpdateAndRender(
     char *FileName = __FILE__;
     debug_read_file_result FileData = DEBUGPlatformReadEntireFile(FileName);
     if (FileData.Contents) {
+      DEBUGPlatformWriteEntireFile("out.txt", FileData.ContentSize, FileData.Contents);
       DEBUGPlatformFreeFileMemory(FileData.Contents);
       FileData.ContentSize = 0;
     }
@@ -80,7 +66,7 @@ internal void GameUpdateAndRender(
 
   if (Input0->IsAnalog) {
     GameState->ToneHz = 256 + (int)(128.0f*(Input0->EndX));
-    GameState->BlueOffset = (int)4.0f*(Input0->EndY);
+    GameState->BlueOffset = (int)(4.0f*(Input0->EndY));
   } else {
 
   }
