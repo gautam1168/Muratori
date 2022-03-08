@@ -77,13 +77,23 @@ struct game_input {
   game_controller_input Controllers[4];
 };
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer, game_sound_buffer *SoundBuffer);
+struct debug_read_file_result {
+  uint32 ContentSize;
+  void *Contents;
+};
 
 struct game_state {
   int GreenOffset;
   int BlueOffset;
   int ToneHz;
 };
+
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName);
+internal void DEBUGPlatformFreeFileMemory(void *Memory);
+internal bool DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory);
+
+internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer, game_sound_buffer *SoundBuffer);
+
 
 #define HANDMADE_HPP
 #endif

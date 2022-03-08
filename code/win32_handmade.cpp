@@ -48,6 +48,48 @@ DWORD WINAPI xInputSetStateStub(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
 global_variable x_input_set_state *XInputSetState_ = xInputSetStateStub;
 #define XInputSetState XInputSetState_
 
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName) {
+  debug_read_file_result Result = {};
+  HANDLE FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+  if (FileHandle != INVALID_HANDLE_VALUE) {
+    LARGE_INTEGER FileSize;
+    if(GetFileSizeEx(FileHandle, &FileSize)) {
+      uint32 FileSize32 = SafeTruncateUint64(FileSize.QuadPart);
+      Result.Contents = VirtualAlloc(0, FileSize32, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+      if (Result.Contents) {
+        DWORD BytesRead;
+        if (ReadFile(FileHandle, Result.Contents, FileSize32, &BytesRead, 0) && BytesRead == FileSize32) {
+          Result.ContentSize = FileSize32;
+        } else {
+          DEBUGPlatformFreeFileMemory(Result.Contents);
+          Result.Contents = 0;
+          Result.ContentSize = 0;
+        }
+      }
+    }
+    CloseHandle(FileHandle);
+  }
+  return Result;
+}
+
+internal void DEBUGPlatformFreeFileMemory(void *Memory) {
+  if (Memory) {
+    VirtualFree(Memory, 0, MEM_RELEASE);
+  }
+}
+
+internal bool DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory) {
+  bool Result = false;
+  HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+  if (FileHandle != INVALID_HANDLE_VALUE) {
+    DWORD BytesWritten;
+    if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
+      Result = BytesWritten == MemorySize;
+    }
+  }
+  return Result;
+}
+
 internal void
 Win32LoadXInput() {
   HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");

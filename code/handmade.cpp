@@ -47,6 +47,12 @@ internal void GameShutDown(game_state *GameState) {
   delete GameState;
 }
 
+
+inline uint32 SafeTruncateUint64(uint64 Value) {
+  Assert(Value <= 0xFFFFFFFF);
+  return (uint32)Value;
+}
+
 internal void GameUpdateAndRender(
   game_memory *Memory,
   game_input *Input,
@@ -58,6 +64,14 @@ internal void GameUpdateAndRender(
 
   game_state *GameState = (game_state *)Memory->PermanentStorage;
   if (!Memory->IsInitialized) {
+
+    char *FileName = __FILE__;
+    debug_read_file_result FileData = DEBUGPlatformReadEntireFile(FileName);
+    if (FileData.Contents) {
+      DEBUGPlatformFreeFileMemory(FileData.Contents);
+      FileData.ContentSize = 0;
+    }
+
     GameState->ToneHz = 256;
     Memory->IsInitialized = true;
   }
