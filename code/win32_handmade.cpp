@@ -405,11 +405,31 @@ internal void Win32ProcessPendingMessages(game_controller_input *KeyboardControl
   }
 }
 
+global_variable LARGE_INTEGER PerfCountFrequency;
+
+inline LARGE_INTEGER Win32GetWallClock() {
+  LARGE_INTEGER Result;
+  QueryPerformanceCounter(&Result);
+  return Result;
+}
+
+inline real32 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end) {
+  real32 Result = ((real32)end.QuadPart - (real32)start.QuadPart) / (real32)PerfCountFrequency.QuadPart;
+  return Result;
+}
+
 int WINAPI wWinMain(
   HINSTANCE Instance, 
   HINSTANCE PrevInstance, 
   PWSTR CommandLine, 
   int ShowCode) {
+
+  int MonitorRefreshHz = 60;
+  int GameUpdateHz = MonitorRefreshHz / 2;
+  real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
+
+  UINT DesiredSchedulerMS = 1;
+  bool SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
 
   Win32LoadXInput();
 
@@ -423,7 +443,6 @@ int WINAPI wWinMain(
   // WindowClass.hIcon = ;
   WindowClass.lpszClassName = "HandmadeHeroWindowClass";
   
-  LARGE_INTEGER PerfCountFrequency;
   QueryPerformanceFrequency(&PerfCountFrequency);
 
   int64 LastCycleCount = __rdtsc();
@@ -458,8 +477,7 @@ int WINAPI wWinMain(
 
       int16 *Samples = (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 
-      LARGE_INTEGER LastCounter;
-      QueryPerformanceCounter(&LastCounter);
+      LARGE_INTEGER LastCounter = Win32GetWallClock();
 
       LPVOID BaseAddress;
 
@@ -630,6 +648,20 @@ int WINAPI wWinMain(
             Win32FillSoundBuffer(SoundOutput.BytesPerSample, &SoundOutput.RunningSampleIndex, ByteToLock, BytesToWrite, &SoundBuffer);
           }
 
+          LARGE_INTEGER WorkCounter = Win32GetWallClock();
+          real32 WorkSecondsElapsed = Win32GetSecondsElapsed(LastCounter, WorkCounter);
+          real32 SecondsElapsedForFrame = WorkSecondsElapsed;
+          if (SecondsElapsedForFrame < TargetSecondsPerFrame) {
+            while(SecondsElapsedForFrame < TargetSecondsPerFrame) {
+              if (SleepIsGranular) {
+                DWORD SleepMS = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecondsElapsedForFrame));
+                Sleep(SleepMS);
+              }
+              SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
+            }
+          } else {
+            OutputDebugString("Frame missed?");
+          }
           win32_window_dimensions windims = GetWindowDimensions(Window);
           // AcqRelease DeviceContext
           {
@@ -637,29 +669,25 @@ int WINAPI wWinMain(
             Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer);
             ReleaseDC(Window, DeviceContext);
           }
-          LARGE_INTEGER EndCounter;
-          QueryPerformanceCounter(&EndCounter);
-
-          
-          int64 EndCycleCount = __rdtsc();
-
-          int64 CyclesElapsed = EndCycleCount - LastCycleCount;
-          int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+#if 0        
           int32 TimeElapsedMs = (int32)(1000*CounterElapsed/PerfCountFrequency.QuadPart);
           int32 FPS = (int32)(PerfCountFrequency.QuadPart / CounterElapsed);
           int32 MCPF = (int32)(CyclesElapsed/(1000 * 1000));
-#if 0        
           char Buffer[256];
           wsprintf(Buffer, "Milliseconds/frame: %dms, FPS: %d, MCPF: %dmc/f\n", TimeElapsedMs, FPS, MCPF);
           OutputDebugString(Buffer);
-          LastCounter = EndCounter;
-          LastCycleCount = EndCycleCount;
-
 #endif
           game_input *Temp;
           Temp = NewInput;
           NewInput = OldInput;
           OldInput = Temp;
+
+          LARGE_INTEGER EndCounter = Win32GetWallClock();
+          LastCounter = EndCounter;
+
+          int64 EndCycleCount = __rdtsc();
+          int64 CyclesElapsed = EndCycleCount - LastCycleCount;
+          LastCycleCount = EndCycleCount;
         }
       } else {
         OutputDebugString("Could not obtain game memory");
