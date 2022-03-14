@@ -3,10 +3,9 @@
 // Platform -> Game
 
 // Game -> Platform
-internal void GameOutputSound(game_sound_buffer *SoundBuffer) {
+internal void GameOutputSound(game_sound_buffer *SoundBuffer, int ToneHz) {
   local_persist real32 tSine = 0.0f;
   int16 ToneVolume = 3000;
-  int ToneHz = 256;
   int WavePeriod = SoundBuffer->SamplesPerSecond/ToneHz;
 
   int16 *SampleOut = SoundBuffer->Samples;
@@ -41,8 +40,7 @@ inline uint32 SafeTruncateUint64(uint64 Value) {
 internal void GameUpdateAndRender(
   game_memory *Memory,
   game_input *Input,
-  game_offscreen_buffer *Buffer, 
-  game_sound_buffer *SoundBuffer
+  game_offscreen_buffer *Buffer
 ) {
 
   Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -81,6 +79,10 @@ internal void GameUpdateAndRender(
     }
   } 
   
-  GameOutputSound(SoundBuffer);
   RenderWeirdGradient(Buffer, GameState);
+}
+
+internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer) {
+  game_state *GameState = (game_state *)Memory->PermanentStorage;
+  GameOutputSound(SoundBuffer, GameState->ToneHz);
 }

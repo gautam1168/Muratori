@@ -18,13 +18,20 @@ struct win32_sound_output {
   uint32 RunningSampleIndex;
   int BytesPerSample;
   int SecondaryBufferSize;
+  DWORD SafteyBytes;
   real32 tSine;
   int LatencySampleCount;
 };
 
 struct win32_debug_time_marker {
-  DWORD PlayCursor;
-  DWORD WriteCursor;
+  DWORD FlipPlayCursor;
+  DWORD FlipWriteCursor;
+
+  DWORD OutputLocation;
+  DWORD OutputByteCount;
+
+  DWORD OutputPlayCursor;
+  DWORD OutputWriteCursor;
 };
 
 #define WIN32_HANDMADE_HPP

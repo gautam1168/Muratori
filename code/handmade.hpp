@@ -99,7 +99,8 @@ internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName);
 internal void DEBUGPlatformFreeFileMemory(void *Memory);
 internal bool DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory);
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer, game_sound_buffer *SoundBuffer);
+internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer);
+internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
 
 
 #define HANDMADE_HPP
