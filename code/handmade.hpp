@@ -1,5 +1,26 @@
 #if !defined(HANDMADE_HPP)
 
+#include <stdint.h>
+#include <math.h>
+
+#define internal static
+#define local_persist static
+#define global_variable static
+
+#define Pi32 3.14159265359f
+
+typedef uint8_t  uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+
+typedef int8_t  int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+
+typedef float real32;
+typedef double real64;
 /*
   HANDMADE_INTERNAL
     - 0  for release
@@ -65,12 +86,37 @@ struct game_controller_input {
   };
 };
 
+struct debug_read_file_result {
+  uint32 ContentSize;
+  void *Contents;
+};
+
+struct game_state {
+  int GreenOffset;
+  int BlueOffset;
+  int ToneHz;
+  real32 tSine;
+};
+
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(char *FileName)
+typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
+
+#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(void *Memory)
+typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
+
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool name(char *Filename, uint32 MemorySize, void *Memory)
+typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
+
+
 struct game_memory {
   bool IsInitialized;
   uint64 PermanentStorageSize;
   void *PermanentStorage; // Required to be 0 on allocation
   uint64 TransientStorageSize;
   void *TransientStorage;
+  debug_platform_read_entire_file *DEBUGPlatformReadEntireFile;
+  debug_platform_free_file_memory *DEBUGPlatformFreeFileMemory;
+  debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 };
 
 struct game_input {
@@ -84,23 +130,20 @@ inline game_controller_input *GetController(game_input *Input, int ControllerInd
   return Result;
 }
 
-struct debug_read_file_result {
-  uint32 ContentSize;
-  void *Contents;
-};
 
-struct game_state {
-  int GreenOffset;
-  int BlueOffset;
-  int ToneHz;
-};
 
-internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName);
-internal void DEBUGPlatformFreeFileMemory(void *Memory);
-internal bool DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory);
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
+typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
+{}
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer);
-internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
+#define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *Memory, game_sound_buffer *SoundBuffer)
+typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
+{}
+
+// void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer);
+// void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
 
 
 #define HANDMADE_HPP
