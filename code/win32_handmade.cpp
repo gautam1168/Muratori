@@ -73,18 +73,33 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 
 typedef struct win32_game_code {
   HMODULE GameCodeDll;
+  FILETIME DLLLastWriteTime;
   game_update_and_render *UpdateAndRender;
   game_get_sound_samples *GetSoundSamples;
   bool isValid;
 } win32_game_code;
 
+inline FILETIME 
+Win32GetLastWriteTime(char *Filename) {
+  FILETIME LastWriteTime = {};
+  WIN32_FIND_DATA FindData;
+  HANDLE FindHandle = FindFirstFile(Filename, &FindData);
+  if (FindHandle != INVALID_HANDLE_VALUE) {
+    LastWriteTime = FindData.ftLastWriteTime;
+    FindClose(FindHandle);
+  }
+  return LastWriteTime;
+}
+
 internal win32_game_code
-Win32LoadGameCode() {
+Win32LoadGameCode(char *SourceDllName, char *TempDllName) {
   win32_game_code Result = {};
   Result.GetSoundSamples = GameGetSoundSamplesStub;
   Result.UpdateAndRender = GameUpdateAndRenderStub;
-  CopyFile("handmade.exe", "handmade_temp.dll", FALSE);
-  HMODULE GameCodeDll = LoadLibrary("handmade_temp.dll");
+
+  Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDllName);
+  CopyFile(SourceDllName, TempDllName, FALSE);
+  HMODULE GameCodeDll = LoadLibrary(TempDllName);
   if (GameCodeDll) {
     Result.GameCodeDll = GameCodeDll;
     Result.GetSoundSamples = (game_get_sound_samples *)GetProcAddress(GameCodeDll, "GameGetSoundSamples");
@@ -500,11 +515,51 @@ internal void Win32DebugSyncDisplay(
 #define GameUpdateHz (MonitorRefreshHz/2)
 #define FramesOfAudioLatency 2
 
+void
+CatStrings(size_t SourceACount, char *SourceA,
+size_t SourceBCount, char *SourceB,
+size_t DestCount, char *Dest) {
+  for (int Index = 0; Index < SourceACount; Index++) {
+    *Dest++ = *SourceA++;
+  }
+  for (int Index = 0; Index < SourceBCount; Index++) {
+    *Dest++ = *SourceB++;
+  }
+   *Dest++ = 0;
+}
+
 int WINAPI wWinMain(
   HINSTANCE Instance, 
   HINSTANCE PrevInstance, 
   PWSTR CommandLine, 
   int ShowCode) {
+
+  char ExecutableName[MAX_PATH];
+  DWORD SizeOfFileName = GetModuleFileNameA(0, ExecutableName, sizeof(ExecutableName));
+  char *OnePastLastSlash = ExecutableName;
+  for (char *Scan = ExecutableName; *Scan; Scan++) {
+    if (*Scan == '\\') {
+      OnePastLastSlash = Scan + 1;
+    }
+  }
+
+  char SourceDllName[] = "handmade.dll";
+  char SourceDllFullPath[MAX_PATH];
+  CatStrings(
+    OnePastLastSlash - ExecutableName, ExecutableName,
+    sizeof(SourceDllName) - 1, SourceDllName,
+    sizeof(SourceDllFullPath), SourceDllFullPath
+  );
+
+  char TempDllName[] = "handmade_temp.dll";
+  char TempDllFullPath[MAX_PATH];
+  CatStrings(
+    OnePastLastSlash - ExecutableName, ExecutableName,
+    sizeof(TempDllName) - 1, TempDllName,
+    sizeof(TempDllFullPath), TempDllFullPath
+  );
+
+  win32_game_code Game = Win32LoadGameCode(SourceDllName, TempDllName);
 
   // int MonitorRefreshHz = 60;
   // int GameUpdateHz = MonitorRefreshHz / 2;
@@ -513,7 +568,6 @@ int WINAPI wWinMain(
   UINT DesiredSchedulerMS = 1;
   bool SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
 
-  win32_game_code Game = Win32LoadGameCode();
   Win32LoadXInput();
 
   WNDCLASS WindowClass = {};
@@ -585,7 +639,6 @@ int WINAPI wWinMain(
       GameMemory.PermanentStorage = VirtualAlloc(BaseAddress, TotalSize, MEM_COMMIT, PAGE_READWRITE);
 
       GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
-      uint32 LoadCounter = 0;
 
       if (Samples && GameMemory.PermanentStorage && GameMemory.TransientStorage) {
         game_input Input[2] = {};
@@ -597,10 +650,10 @@ int WINAPI wWinMain(
 
         while(Running) {
 
-          if (LoadCounter++ > 120) {
+          FILETIME NewDllWriteTime = Win32GetLastWriteTime(SourceDllName);
+          if (CompareFileTime(&NewDllWriteTime, &Game.DLLLastWriteTime) != 0) {
             Win32UnloadGameCode(&Game);
-            Game = Win32LoadGameCode();
-            LoadCounter = 0;
+            Game = Win32LoadGameCode(SourceDllName, TempDllName);
           }
 
           game_controller_input *OldKeyboardController = GetController(OldInput, 0);
