@@ -1,7 +1,7 @@
 #if !defined(HANDMADE_HPP)
 
-#include <stdint.h>
-#include <math.h>
+// #include <stdint.h>
+// #include <math.h>
 
 #define internal static
 #define local_persist static
@@ -9,6 +9,16 @@
 
 #define Pi32 3.14159265359f
 
+typedef unsigned char uint8;
+typedef unsigned short uint16;
+typedef unsigned long uint32;
+typedef unsigned long long uint64;
+
+typedef char int8;
+typedef short int16;
+typedef long int32;
+typedef long long int64;
+/*
 typedef uint8_t  uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -18,6 +28,7 @@ typedef int8_t  int8;
 typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
+*/
 
 typedef float real32;
 typedef double real64;
