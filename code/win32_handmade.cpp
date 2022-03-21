@@ -7,7 +7,7 @@
 
 #include "win32_handmade.hpp"
 
-global_variable bool Running, SoundIsPlaying;
+global_variable bool Running, SoundIsPlaying, Paused = false;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 // global_variable int XOffset = 0, YOffset = 0;
 global_variable LPDIRECTSOUNDBUFFER SecondaryBuffer;
@@ -70,14 +70,6 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
   }
   return Result;
 }
-
-typedef struct win32_game_code {
-  HMODULE GameCodeDll;
-  FILETIME DLLLastWriteTime;
-  game_update_and_render *UpdateAndRender;
-  game_get_sound_samples *GetSoundSamples;
-  bool isValid;
-} win32_game_code;
 
 inline FILETIME 
 Win32GetLastWriteTime(char *Filename) {
@@ -353,7 +345,58 @@ LRESULT CALLBACK Win32MainWindowCallback(
   return Result;
 }
 
-internal void Win32ProcessPendingMessages(game_controller_input *KeyboardController) {
+internal void 
+Win32BeginRecordingInput(win32_state *Win32State, int InputRecordingIndex) {
+  char *Filename = "foo.hmi";
+  Win32State->InputRecordingIndex = InputRecordingIndex;
+  Win32State->RecordingHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+
+  DWORD BytesToWrite = (DWORD)Win32State->TotalGameMemorySize;
+  Assert(BytesToWrite == Win32State->TotalGameMemorySize);
+  DWORD BytesWritten;
+  WriteFile(Win32State->RecordingHandle, Win32State->GameMemoryBlock, BytesToWrite, &BytesWritten, 0);
+}
+
+internal void 
+Win32EndRecordingInput(win32_state *Win32State) {
+  CloseHandle(Win32State->RecordingHandle);
+}
+
+internal void
+Win32RecordInput(win32_state *Win32State, game_input *NewInput) {
+  DWORD BytesWritten;
+  WriteFile(Win32State->RecordingHandle, NewInput, sizeof(*NewInput), &BytesWritten, 0);
+}
+
+internal void
+Win32BeginInputPlayback(win32_state *Win32State, int RecordingIndex) {
+  Win32State->InputPlayingIndex = RecordingIndex;
+  char *Filename = "foo.hmi";
+  Win32State->PlaybackHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+  DWORD BytesToRead = (DWORD)Win32State->TotalGameMemorySize;
+  Assert(BytesToRead == Win32State->TotalGameMemorySize);
+  DWORD BytesRead;
+  ReadFile(Win32State->PlaybackHandle, Win32State->GameMemoryBlock, BytesToRead, &BytesRead, 0);
+}
+
+internal void
+Win32EndInputPlayback(win32_state *Win32State) {
+  CloseHandle(Win32State->PlaybackHandle);
+}
+
+internal void
+Win32PlaybackInput(win32_state *Win32State, game_input *NewInput) {
+  DWORD BytesRead = 0;
+  if (ReadFile(Win32State->PlaybackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0)) {
+    if (BytesRead == 0) {
+      int PlayingIndex = Win32State->InputPlayingIndex;
+      Win32EndInputPlayback(Win32State);
+      Win32BeginInputPlayback(Win32State, PlayingIndex);
+    }
+  }
+}
+
+internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controller_input *KeyboardController) {
   MSG Message;
   while(PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
     switch (Message.message) {
@@ -418,6 +461,19 @@ internal void Win32ProcessPendingMessages(game_controller_input *KeyboardControl
         }
         else if (VKCode == VK_SPACE)
         {
+        } else if (VKCode == 'P') {
+          if (IsDown) {
+            Paused = !Paused;
+          }
+        } else if (VKCode == 'L') {
+          if (IsDown) {
+            if (Win32State->InputRecordingIndex == 0) {
+              Win32BeginRecordingInput(Win32State, 1);
+            } else {
+              Win32EndRecordingInput(Win32State);
+              Win32BeginInputPlayback(Win32State, 1);
+            }
+          }
         }
 
         bool AltKeyWasDown = (Message.lParam & (1 << 29));
@@ -528,6 +584,7 @@ size_t DestCount, char *Dest) {
    *Dest++ = 0;
 }
 
+
 int WINAPI wWinMain(
   HINSTANCE Instance, 
   HINSTANCE PrevInstance, 
@@ -621,23 +678,25 @@ int WINAPI wWinMain(
       LPVOID BaseAddress;
 
 #if HANDMADE_INTERNAL
-  // BaseAddress = (LPVOID)Terabytes((uint64)2); // Memory allocation fails
-  BaseAddress = 0;
+  BaseAddress = (LPVOID)Terabytes((uint64)2); // Memory allocation fails
+  // BaseAddress = 0;
   int DebugLastMarkerIndex = 0;
   win32_debug_time_marker DebugLastTimeMarkers[GameUpdateHz / 2] = {0};
 #else
   BaseAddress = 0;
 #endif
+      win32_state Win32State = {};
 
       game_memory GameMemory = {};
       GameMemory.PermanentStorageSize = Megabytes(64);
-      GameMemory.TransientStorageSize = Gigabytes((uint64)4);
+      GameMemory.TransientStorageSize = Gigabytes((uint64)2);
       GameMemory.DEBUGPlatformFreeFileMemory = DEBUGPlatformFreeFileMemory;
       GameMemory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
       GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
-      uint64 TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-      GameMemory.PermanentStorage = VirtualAlloc(BaseAddress, TotalSize, MEM_COMMIT, PAGE_READWRITE);
-
+      Win32State.TotalGameMemorySize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
+      Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, Win32State.TotalGameMemorySize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+      GameMemory.PermanentStorage = Win32State.GameMemoryBlock;
+      // DWORD err = GetLastError();
       GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
       if (Samples && GameMemory.PermanentStorage && GameMemory.TransientStorage) {
@@ -648,7 +707,8 @@ int WINAPI wWinMain(
         DWORD LastPlayCursor = 0;
         bool SoundIsvalid = false;
 
-        while(Running) {
+
+        while(Running && !Paused) {
 
           FILETIME NewDllWriteTime = Win32GetLastWriteTime(SourceDllName);
           if (CompareFileTime(&NewDllWriteTime, &Game.DLLLastWriteTime) != 0) {
@@ -665,7 +725,7 @@ int WINAPI wWinMain(
             NewKeyboardController->Buttons[i].EndedDown = OldKeyboardController->Buttons[i].EndedDown;
           }
 
-          Win32ProcessPendingMessages(NewKeyboardController);
+          Win32ProcessPendingMessages(&Win32State, NewKeyboardController);
             
           // Poll XInput devices
           int MaxControllerCount = XUSER_MAX_COUNT + 1;
@@ -798,8 +858,15 @@ int WINAPI wWinMain(
           Buffer.Height = GlobalBackBuffer.Height;
           Buffer.Width = GlobalBackBuffer.Width;
           Buffer.Pitch = GlobalBackBuffer.Pitch;
+          Buffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
 
-          
+          if (Win32State.InputRecordingIndex) {
+            Win32RecordInput(&Win32State, NewInput);
+          }
+
+          if (Win32State.InputPlayingIndex) {
+            Win32PlaybackInput(&Win32State, NewInput);
+          }
 
           Game.UpdateAndRender(&GameMemory, NewInput, &Buffer);
 

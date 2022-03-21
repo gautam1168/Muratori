@@ -48,6 +48,7 @@ struct game_offscreen_buffer {
   int Width;
   int Height;
   int Pitch;
+  int BytesPerPixel;
 };
 
 struct game_sound_buffer {
@@ -95,7 +96,10 @@ struct game_state {
   int GreenOffset;
   int BlueOffset;
   int ToneHz;
+  int PlayerX;
+  int PlayerY;
   real32 tSine;
+  real32 tJump;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(char *FileName)

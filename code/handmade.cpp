@@ -31,6 +31,19 @@ void RenderWeirdGradient(game_offscreen_buffer *Buffer, game_state *GameState) {
   }
 }
 
+internal void RenderPlayer(game_offscreen_buffer *Buffer, game_state *GameState) {
+  int Top = GameState->PlayerY;
+  int Bottom = GameState->PlayerY + 10;
+
+  for (int X = GameState->PlayerX; X < GameState->PlayerX + 10; X++) {
+    uint8 *Pixel = ((uint8 *)Buffer->Memory + X * Buffer->BytesPerPixel + Top*Buffer->Pitch);
+    for (int Y = Top; Y < Bottom; Y++) {
+      *(uint32 *)Pixel = 0xFFFFFFFF;
+      Pixel += Buffer->Pitch;
+    }
+  }
+}
+
 inline uint32 SafeTruncateUint64(uint64 Value) {
   Assert(Value <= 0xFFFFFFFF);
   return (uint32)Value;
@@ -53,6 +66,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     GameState->ToneHz = 256;
     GameState->tSine = 0.0f;
+    GameState->PlayerX = 100;
+    GameState->PlayerY = 100;
     Memory->IsInitialized = true;
   }
 
@@ -71,11 +86,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
 
     if (Controller->ActionDown.EndedDown) {
-      GameState->GreenOffset += 1;
+      // GameState->GreenOffset += 1;
+      GameState->PlayerY -= 10;
     }
+    GameState->PlayerX += (int)(4.0f*(Controller->MoveRight.HalfTransitionCount));
+    GameState->PlayerY += (int)(4.0f*(Controller->MoveDown.HalfTransitionCount));
+    GameState->PlayerX -= (int)(4.0f*(Controller->MoveLeft.HalfTransitionCount));
+    GameState->PlayerY -= (int)(4.0f*(Controller->MoveUp.HalfTransitionCount));
   } 
   
   RenderWeirdGradient(Buffer, GameState);
+  RenderPlayer(Buffer, GameState);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
