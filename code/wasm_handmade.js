@@ -1,5 +1,4 @@
 /**
- * - Paint pattern
  * - Use wasm to paint the pattern
  * - Get inputs and move pattern
  * - Print framerate
@@ -20,7 +19,18 @@ canvas.setAttribute("height", height);
 
 requestAnimationFrame(() => {
   for (let i = 0; i < ColorView.length; i++) {
-    ColorView[i] = 0xFF00BE00;
+    const X = i % width;
+    const Y = Math.floor(i / width);
+    const alpha = 255, 
+      blue = X, 
+      green = Y, 
+      red = 0;
+    ColorView[i] = (
+      alpha << 24 | 
+      blue  << 16 | 
+      green << 8  | 
+      red          
+    );
   }
   ctx.putImageData(new ImageData(GlobalBackBuffer, width), 0, 0);
 });
