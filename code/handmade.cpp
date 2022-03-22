@@ -10,7 +10,7 @@ void GameOutputSound(game_sound_buffer *SoundBuffer, game_state *GameState) {
   int16 *SampleOut = SoundBuffer->Samples;
   for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount;  ++SampleIndex) {
     // TODO(gaurav): Implement sine 
-    real32 SineValue = 1; // sinf(GameState->tSine);
+    real32 SineValue = sinf(GameState->tSine);
     int16 SampleValue = (int16)(SineValue * ToneVolume);
     *SampleOut++ = SampleValue;
     *SampleOut++ = SampleValue;

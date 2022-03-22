@@ -1,7 +1,7 @@
 #if !defined(HANDMADE_HPP)
 
 // #include <stdint.h>
-// #include <math.h>
+#include <math.h>
 
 #define internal static
 #define local_persist static

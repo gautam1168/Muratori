@@ -74,11 +74,15 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 inline FILETIME 
 Win32GetLastWriteTime(char *Filename) {
   FILETIME LastWriteTime = {};
-  WIN32_FIND_DATA FindData;
-  HANDLE FindHandle = FindFirstFile(Filename, &FindData);
-  if (FindHandle != INVALID_HANDLE_VALUE) {
+  // WIN32_FIND_DATA FindData;
+  // HANDLE FindHandle = FindFirstFile(Filename, &FindData);
+  // if (FindHandle != INVALID_HANDLE_VALUE) {
+  //   LastWriteTime = FindData.ftLastWriteTime;
+  //   FindClose(FindHandle);
+  // }
+  WIN32_FILE_ATTRIBUTE_DATA FindData;
+  if (GetFileAttributesEx(Filename, GetFileExInfoStandard, &FindData)) {
     LastWriteTime = FindData.ftLastWriteTime;
-    FindClose(FindHandle);
   }
   return LastWriteTime;
 }
@@ -255,7 +259,8 @@ internal void InitializeGlobalBackBuffer(win32_offscreen_buffer* Buffer, int Wid
 internal void Win32DisplayBufferInWindow(HDC DeviceContext, win32_window_dimensions WinDims, win32_offscreen_buffer Buffer) {
   StretchDIBits(
     DeviceContext,
-    0, 0, WinDims.Width, WinDims.Height,
+    // 0, 0, WinDims.Width, WinDims.Height,
+    0, 0, Buffer.Width, Buffer.Height,
     0, 0, Buffer.Width, Buffer.Height,
     Buffer.Memory, 
     &Buffer.BitmapInfo,
@@ -345,9 +350,52 @@ LRESULT CALLBACK Win32MainWindowCallback(
   return Result;
 }
 
+void
+CatStrings(size_t SourceACount, char *SourceA,
+size_t SourceBCount, char *SourceB,
+size_t DestCount, char *Dest) {
+  for (int Index = 0; Index < SourceACount; Index++) {
+    *Dest++ = *SourceA++;
+  }
+  for (int Index = 0; Index < SourceBCount; Index++) {
+    *Dest++ = *SourceB++;
+  }
+   *Dest++ = 0;
+}
+
+internal void
+Win32GetExeFilename(win32_state *State) {
+  DWORD SizeOfFileName = GetModuleFileNameA(0, State->EXEFilename, sizeof(State->EXEFilename));
+  State->OnePastLastExeFilenameSlash = State->EXEFilename;
+  for (char *Scan = State->EXEFilename; *Scan; Scan++) {
+    if (*Scan == '\\') {
+      State->OnePastLastExeFilenameSlash = Scan + 1;
+    }
+  }
+}
+
+internal int
+StringLength(char *input) {
+  int Count = 0;
+  while (*input++) {
+    ++Count;
+  }
+  return Count;
+}
+
+internal void
+Win32BuildExePathFilename(win32_state *State, char *Filename, int DestCount, char *Dest) {
+  CatStrings(
+    State->OnePastLastExeFilenameSlash - State->EXEFilename, State->EXEFilename,
+    StringLength(Filename), Filename,
+    DestCount, Dest
+  );
+}
+
 internal void 
 Win32BeginRecordingInput(win32_state *Win32State, int InputRecordingIndex) {
-  char *Filename = "foo.hmi";
+  char Filename[WIN32_STATE_FILE_NAME_COUNT];
+  Win32BuildExePathFilename(Win32State, "loop_edit.hmi", sizeof(Filename), Filename);
   Win32State->InputRecordingIndex = InputRecordingIndex;
   Win32State->RecordingHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
 
@@ -371,7 +419,8 @@ Win32RecordInput(win32_state *Win32State, game_input *NewInput) {
 internal void
 Win32BeginInputPlayback(win32_state *Win32State, int RecordingIndex) {
   Win32State->InputPlayingIndex = RecordingIndex;
-  char *Filename = "foo.hmi";
+  char Filename[WIN32_STATE_FILE_NAME_COUNT];
+  Win32BuildExePathFilename(Win32State, "loop_edit.hmi", sizeof(Filename), Filename);
   Win32State->PlaybackHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
   DWORD BytesToRead = (DWORD)Win32State->TotalGameMemorySize;
   Assert(BytesToRead == Win32State->TotalGameMemorySize);
@@ -395,6 +444,10 @@ Win32PlaybackInput(win32_state *Win32State, game_input *NewInput) {
     }
   }
 }
+
+
+
+
 
 internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controller_input *KeyboardController) {
   MSG Message;
@@ -571,52 +624,23 @@ internal void Win32DebugSyncDisplay(
 #define GameUpdateHz (MonitorRefreshHz/2)
 #define FramesOfAudioLatency 2
 
-void
-CatStrings(size_t SourceACount, char *SourceA,
-size_t SourceBCount, char *SourceB,
-size_t DestCount, char *Dest) {
-  for (int Index = 0; Index < SourceACount; Index++) {
-    *Dest++ = *SourceA++;
-  }
-  for (int Index = 0; Index < SourceBCount; Index++) {
-    *Dest++ = *SourceB++;
-  }
-   *Dest++ = 0;
-}
-
-
 int WINAPI wWinMain(
   HINSTANCE Instance, 
   HINSTANCE PrevInstance, 
   PWSTR CommandLine, 
   int ShowCode) {
 
-  char ExecutableName[MAX_PATH];
-  DWORD SizeOfFileName = GetModuleFileNameA(0, ExecutableName, sizeof(ExecutableName));
-  char *OnePastLastSlash = ExecutableName;
-  for (char *Scan = ExecutableName; *Scan; Scan++) {
-    if (*Scan == '\\') {
-      OnePastLastSlash = Scan + 1;
-    }
-  }
+  win32_state Win32State = {};
 
-  char SourceDllName[] = "handmade.dll";
-  char SourceDllFullPath[MAX_PATH];
-  CatStrings(
-    OnePastLastSlash - ExecutableName, ExecutableName,
-    sizeof(SourceDllName) - 1, SourceDllName,
-    sizeof(SourceDllFullPath), SourceDllFullPath
-  );
+  Win32GetExeFilename(&Win32State);
+  
+  char SourceDllFullPath[WIN32_STATE_FILE_NAME_COUNT];
+  Win32BuildExePathFilename(&Win32State, "handmade.dll", sizeof(SourceDllFullPath), SourceDllFullPath);
 
-  char TempDllName[] = "handmade_temp.dll";
-  char TempDllFullPath[MAX_PATH];
-  CatStrings(
-    OnePastLastSlash - ExecutableName, ExecutableName,
-    sizeof(TempDllName) - 1, TempDllName,
-    sizeof(TempDllFullPath), TempDllFullPath
-  );
+  char TempDllFullPath[WIN32_STATE_FILE_NAME_COUNT];
+  Win32BuildExePathFilename(&Win32State, "handmade_temp.dll", sizeof(TempDllFullPath), TempDllFullPath);
 
-  win32_game_code Game = Win32LoadGameCode(SourceDllName, TempDllName);
+  win32_game_code Game = Win32LoadGameCode(SourceDllFullPath, TempDllFullPath);
 
   // int MonitorRefreshHz = 60;
   // int GameUpdateHz = MonitorRefreshHz / 2;
@@ -685,7 +709,6 @@ int WINAPI wWinMain(
 #else
   BaseAddress = 0;
 #endif
-      win32_state Win32State = {};
 
       game_memory GameMemory = {};
       GameMemory.PermanentStorageSize = Megabytes(64);
@@ -710,10 +733,10 @@ int WINAPI wWinMain(
 
         while(Running && !Paused) {
 
-          FILETIME NewDllWriteTime = Win32GetLastWriteTime(SourceDllName);
+          FILETIME NewDllWriteTime = Win32GetLastWriteTime(SourceDllFullPath);
           if (CompareFileTime(&NewDllWriteTime, &Game.DLLLastWriteTime) != 0) {
             Win32UnloadGameCode(&Game);
-            Game = Win32LoadGameCode(SourceDllName, TempDllName);
+            Game = Win32LoadGameCode(SourceDllFullPath, TempDllFullPath);
           }
 
           game_controller_input *OldKeyboardController = GetController(OldInput, 0);
@@ -752,24 +775,32 @@ int WINAPI wWinMain(
                 bool Down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
                 bool Left = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
                 bool Right = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
-                NewController->IsAnalog = true;
+                NewController->IsAnalog = OldController->IsAnalog;
                 NewController->StickAverageX = Win32ProcessXInputStickValue(Pad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
                 NewController->StickAverageY = Win32ProcessXInputStickValue(Pad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
 
+                if (NewController->StickAverageX != 0.0f || NewController->StickAverageY != 0.0f) {
+                  NewController->IsAnalog = true;
+                }
+
                 if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP) {
                   NewController->StickAverageY = 1.0f;
+                  NewController->IsAnalog = false;
                 }
 
                 if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN) {
                   NewController->StickAverageY = -1.0f;
+                  NewController->IsAnalog = false;
                 }
 
                 if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT) {
                   NewController->StickAverageX = -1.0f;
+                  NewController->IsAnalog = false;
                 }
 
                 if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) {
                   NewController->StickAverageX = 1.0f;
+                  NewController->IsAnalog = false;
                 }
 
                 real32 Threshold = 0.5f;
