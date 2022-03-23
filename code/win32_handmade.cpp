@@ -47,7 +47,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
         if (ReadFile(FileHandle, Result.Contents, FileSize32, &BytesRead, 0) && BytesRead == FileSize32) {
           Result.ContentSize = FileSize32;
         } else {
-          DEBUGPlatformFreeFileMemory(Result.Contents);
+          DEBUGPlatformFreeFileMemory(Thread, Result.Contents);
           Result.Contents = 0;
           Result.ContentSize = 0;
         }
@@ -279,9 +279,10 @@ internal void Win32ProcessXInputDigitalButton(
 }
 
 internal void Win32ProcessKeyboardMessage(game_button_state *state, bool isDown) {
-  Assert(state->EndedDown != isDown);
-  state->EndedDown = isDown;
-  state->HalfTransitionCount++;
+  if(state->EndedDown != isDown) {
+    state->EndedDown = isDown;
+    state->HalfTransitionCount++;
+  }
 }
 
 internal real32 Win32ProcessXInputStickValue(SHORT stickValue, SHORT deadZone) {
@@ -620,8 +621,6 @@ internal void Win32DebugSyncDisplay(
   }
 }
 
-#define MonitorRefreshHz 60
-#define GameUpdateHz (MonitorRefreshHz/2)
 #define FramesOfAudioLatency 2
 
 int WINAPI wWinMain(
@@ -644,7 +643,6 @@ int WINAPI wWinMain(
 
   // int MonitorRefreshHz = 60;
   // int GameUpdateHz = MonitorRefreshHz / 2;
-  real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz ;
 
   UINT DesiredSchedulerMS = 1;
   bool SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
@@ -682,6 +680,17 @@ int WINAPI wWinMain(
     );
 
     if (Window) {
+      HDC RefreshDC = GetDC(Window);
+      int Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
+      ReleaseDC(Window, RefreshDC);
+      int MonitorRefreshHz = 60;
+      
+      if (Win32RefreshRate > 1) {
+        MonitorRefreshHz = Win32RefreshRate;
+      }
+      #define GameUpdateHz (MonitorRefreshHz/2)
+      real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz ;
+
       Running = true;
 
       SoundOutput.SamplesPerSecond = 48000;
@@ -689,7 +698,7 @@ int WINAPI wWinMain(
       SoundOutput.SecondaryBufferSize = SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample;
       SoundOutput.LatencySampleCount = FramesOfAudioLatency * (SoundOutput.SamplesPerSecond / GameUpdateHz);
       // Variability in updates
-      SoundOutput.SafteyBytes = ((SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample) / GameUpdateHz)/2;
+      SoundOutput.SafteyBytes = (int)((((real32)SoundOutput.SamplesPerSecond * (real32)SoundOutput.BytesPerSample) / (real32)GameUpdateHz)/2.0f);
 
       Wind32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
       Win32ClearBuffer(&SoundOutput);
@@ -705,7 +714,7 @@ int WINAPI wWinMain(
   BaseAddress = (LPVOID)Terabytes((uint64)2); // Memory allocation fails
   // BaseAddress = 0;
   int DebugLastMarkerIndex = 0;
-  win32_debug_time_marker DebugLastTimeMarkers[GameUpdateHz / 2] = {0};
+  win32_debug_time_marker DebugLastTimeMarkers[30] = {0};
 #else
   BaseAddress = 0;
 #endif
@@ -749,6 +758,18 @@ int WINAPI wWinMain(
           }
 
           Win32ProcessPendingMessages(&Win32State, NewKeyboardController);
+
+          POINT MouseP;
+          GetCursorPos(&MouseP);
+          ScreenToClient(Window, &MouseP);
+          NewInput->MouseX = MouseP.x;
+          NewInput->MouseY = MouseP.y;
+          NewInput->MouseZ = 0;
+          Win32ProcessKeyboardMessage(&NewInput->MouseButtons[0], GetKeyState(VK_LBUTTON) & (1 << 15));
+          Win32ProcessKeyboardMessage(&NewInput->MouseButtons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
+          Win32ProcessKeyboardMessage(&NewInput->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15));
+          Win32ProcessKeyboardMessage(&NewInput->MouseButtons[3], GetKeyState(VK_XBUTTON1) & (1 << 15));
+          Win32ProcessKeyboardMessage(&NewInput->MouseButtons[4], GetKeyState(VK_XBUTTON2) & (1 << 15));
             
           // Poll XInput devices
           int MaxControllerCount = XUSER_MAX_COUNT + 1;
@@ -884,6 +905,7 @@ int WINAPI wWinMain(
             }
           }
 
+          thread_context Thread = {};
           game_offscreen_buffer Buffer = {};
           Buffer.Memory = GlobalBackBuffer.Memory;
           Buffer.Height = GlobalBackBuffer.Height;
@@ -899,7 +921,7 @@ int WINAPI wWinMain(
             Win32PlaybackInput(&Win32State, NewInput);
           }
 
-          Game.UpdateAndRender(&GameMemory, NewInput, &Buffer);
+          Game.UpdateAndRender(&Thread, &GameMemory, NewInput, &Buffer);
 
           DWORD PlayCursor;
           DWORD WriteCursor;
@@ -942,7 +964,7 @@ int WINAPI wWinMain(
             SoundBuffer.SampleCount = BytesToWrite / SoundOutput.BytesPerSample;
             SoundBuffer.Samples = Samples;
             int16 *SourceSamples = Samples;
-            Game.GetSoundSamples(&GameMemory, &SoundBuffer);
+            Game.GetSoundSamples(&Thread, &GameMemory, &SoundBuffer);
 #if HANDMADE_INTERNAL
             win32_debug_time_marker *Marker = &DebugLastTimeMarkers[DebugLastMarkerIndex];
             Marker->OutputPlayCursor = PlayCursor;

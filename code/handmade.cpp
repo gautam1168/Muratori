@@ -32,15 +32,16 @@ void RenderWeirdGradient(game_offscreen_buffer *Buffer, game_state *GameState) {
   }
 }
 
-internal void RenderPlayer(game_offscreen_buffer *Buffer, game_state *GameState) {
-  int Top = GameState->PlayerY;
-  int Bottom = GameState->PlayerY + 10;
-
-  for (int X = GameState->PlayerX; X < GameState->PlayerX + 10; X++) {
-    uint8 *Pixel = ((uint8 *)Buffer->Memory + X * Buffer->BytesPerPixel + Top*Buffer->Pitch);
-    for (int Y = Top; Y < Bottom; Y++) {
-      *(uint32 *)Pixel = 0xFFFFFFFF;
-      Pixel += Buffer->Pitch;
+internal void RenderPlayer(game_offscreen_buffer *Buffer, int PlayerX, int PlayerY) {
+  int Top = PlayerY;
+  int Bottom = PlayerY + 10;
+  if (PlayerX > 0 && PlayerX < Buffer->Pitch && PlayerY > 0 && PlayerY + 10 < Buffer->Height) {
+    for (int X = PlayerX; X < PlayerX + 10; X++) {
+      uint8 *Pixel = ((uint8 *)Buffer->Memory + X * Buffer->BytesPerPixel + Top*Buffer->Pitch);
+      for (int Y = Top; Y < Bottom; Y++) {
+        *(uint32 *)Pixel = 0xFFFFFFFF;
+        Pixel += Buffer->Pitch;
+      }
     }
   }
 }
@@ -58,10 +59,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
   if (!Memory->IsInitialized) {
 
     char *FileName = __FILE__;
-    debug_read_file_result FileData = Memory->DEBUGPlatformReadEntireFile(FileName);
+    debug_read_file_result FileData = Memory->DEBUGPlatformReadEntireFile(Thread, FileName);
     if (FileData.Contents) {
-      Memory->DEBUGPlatformWriteEntireFile("out.txt", FileData.ContentSize, FileData.Contents);
-      Memory->DEBUGPlatformFreeFileMemory(FileData.Contents);
+      Memory->DEBUGPlatformWriteEntireFile(Thread, "out.txt", FileData.ContentSize, FileData.Contents);
+      Memory->DEBUGPlatformFreeFileMemory(Thread, FileData.Contents);
       FileData.ContentSize = 0;
     }
 
@@ -97,7 +98,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
   } 
   
   RenderWeirdGradient(Buffer, GameState);
-  RenderPlayer(Buffer, GameState);
+  RenderPlayer(Buffer, GameState->PlayerX, GameState->PlayerY);
+  RenderPlayer(Buffer, Input->MouseX, Input->MouseY);
+  for (int i = 0; i < sizeof(Input->MouseButtons); i++) {
+    if (Input->MouseButtons[i].EndedDown) {
+      RenderPlayer(Buffer, 10 + i*10, 10);
+    }
+  }
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
