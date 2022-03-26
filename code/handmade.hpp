@@ -141,7 +141,7 @@ struct game_memory {
 struct game_input {
   game_button_state MouseButtons[5];
   int32 MouseX, MouseY, MouseZ;
-
+  real32 SecondsToAdvanceOverUpdate;
   game_controller_input Controllers[5];
 };
 

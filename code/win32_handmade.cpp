@@ -677,7 +677,7 @@ int WINAPI wWinMain(
 
   WNDCLASS WindowClass = {};
 
-  InitializeGlobalBackBuffer(&GlobalBackBuffer, 1280, 720);
+  InitializeGlobalBackBuffer(&GlobalBackBuffer, 960, 540);
 
   WindowClass.style = CS_OWNDC|CS_HREDRAW|CS_VREDRAW;
   WindowClass.lpfnWndProc = Win32MainWindowCallback;
@@ -780,6 +780,8 @@ int WINAPI wWinMain(
         game_input Input[2] = {};
         game_input *NewInput = &Input[0];
         game_input *OldInput = &Input[1];
+
+        NewInput->SecondsToAdvanceOverUpdate = TargetSecondsPerFrame;
 
         DWORD LastPlayCursor = 0;
         bool SoundIsvalid = false;
@@ -1062,14 +1064,14 @@ int WINAPI wWinMain(
           // AcqRelease DeviceContext
           {
             HDC DeviceContext = GetDC(Window);
-#if HANDMADE_INTERNAL
-            Win32DebugSyncDisplay(&GlobalBackBuffer,
-                                  ArrayCount(DebugLastTimeMarkers),
-                                  DebugLastTimeMarkers,
-                                  DebugLastMarkerIndex - 1,
-                                  &SoundOutput,
-                                  TargetSecondsPerFrame);
-#endif
+// #if HANDMADE_INTERNAL
+//             Win32DebugSyncDisplay(&GlobalBackBuffer,
+//                                   ArrayCount(DebugLastTimeMarkers),
+//                                   DebugLastTimeMarkers,
+//                                   DebugLastMarkerIndex - 1,
+//                                   &SoundOutput,
+//                                   TargetSecondsPerFrame);
+// #endif
             Win32DisplayBufferInWindow(DeviceContext, windims, GlobalBackBuffer);
             ReleaseDC(Window, DeviceContext);
           }
