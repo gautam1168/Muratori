@@ -108,13 +108,27 @@ struct debug_read_file_result {
 };
 
 struct game_state {
-  int GreenOffset;
-  int BlueOffset;
-  int ToneHz;
-  int PlayerX;
-  int PlayerY;
-  real32 tSine;
-  real32 tJump;
+  uint32 ToneHz;
+  real32 PlayerX;
+  real32 PlayerY;
+};
+
+struct tile_map {
+  int32 CountX;
+  int32 CountY;
+
+  real32 UpperLeftX;
+  real32 UpperLeftY;
+  real32 TileWidth;
+  real32 TileHeight;
+
+  uint32 *Tiles;
+};
+
+struct world {
+  int32 CountX;
+  int32 CountY;
+  tile_map *TileMaps;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
@@ -141,7 +155,7 @@ struct game_memory {
 struct game_input {
   game_button_state MouseButtons[5];
   int32 MouseX, MouseY, MouseZ;
-  real32 SecondsToAdvanceOverUpdate;
+  real32 dtForFrame;
   game_controller_input Controllers[5];
 };
 

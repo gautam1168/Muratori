@@ -257,10 +257,18 @@ internal void InitializeGlobalBackBuffer(win32_offscreen_buffer* Buffer, int Wid
 }
 
 internal void Win32DisplayBufferInWindow(HDC DeviceContext, win32_window_dimensions WinDims, win32_offscreen_buffer Buffer) {
+  int OffsetX = 10;
+  int OffsetY = 10;
+
+  PatBlt(DeviceContext, 0, 0, WinDims.Width, OffsetY, BLACKNESS);
+  PatBlt(DeviceContext, 0, OffsetY + Buffer.Height, WinDims.Width, WinDims.Height, BLACKNESS);
+  PatBlt(DeviceContext, 0, 0, OffsetX, WinDims.Width, BLACKNESS);
+  PatBlt(DeviceContext, OffsetX + Buffer.Width, 0, WinDims.Width, WinDims.Height, BLACKNESS);
+
   StretchDIBits(
     DeviceContext,
     // 0, 0, WinDims.Width, WinDims.Height,
-    0, 0, Buffer.Width, Buffer.Height,
+    OffsetX, OffsetY, Buffer.Width, Buffer.Height,
     0, 0, Buffer.Width, Buffer.Height,
     Buffer.Memory, 
     &Buffer.BitmapInfo,
@@ -714,7 +722,7 @@ int WINAPI wWinMain(
       if (Win32RefreshRate > 1) {
         MonitorRefreshHz = Win32RefreshRate;
       }
-      #define GameUpdateHz (MonitorRefreshHz/2)
+      #define GameUpdateHz (MonitorRefreshHz/1)
       real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz ;
 
       Running = true;
@@ -781,7 +789,7 @@ int WINAPI wWinMain(
         game_input *NewInput = &Input[0];
         game_input *OldInput = &Input[1];
 
-        NewInput->SecondsToAdvanceOverUpdate = TargetSecondsPerFrame;
+        NewInput->dtForFrame = TargetSecondsPerFrame;
 
         DWORD LastPlayCursor = 0;
         bool SoundIsvalid = false;
