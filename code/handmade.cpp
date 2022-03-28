@@ -133,6 +133,22 @@ IsWorldPointEmpty(world *World, int32 TileMapX, int32 TileMapY, real32 TestX, re
   return Empty;
 }
 
+extern "C" void RenderWasmGradient(uint32 *Buffer, int32 width, int32 height) {
+  Assert(width * height > width &&
+    width * height > height &&
+    width * height <= 0xFFFFFFFF);
+  for (int32 i = 0; i < width * height; i++) {
+    uint8 X = (uint8)(i % width);
+    uint8 Y = (uint8)(i / width);
+    Buffer[i] = (
+      255 << 24 |
+      X   << 16 |
+      Y   << 8  |
+      0
+    );
+  }
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
   Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 #define TILEMAP_MAX_X 16
