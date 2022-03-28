@@ -272,7 +272,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
   }
 
-  real32 PlayerMinX = GameState->PlayerX - (0.5f * TileMap->TileWidth);
+  real32 PlayerMinX = GameState->PlayerX - (0.5f * PlayerWidth);
   real32 PlayerMinY = GameState->PlayerY - TileMap->TileHeight;
   real32 PlayerMaxX = PlayerMinX + PlayerWidth;
   real32 PlayerMaxY = PlayerMinY + PlayerHeight;
