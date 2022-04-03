@@ -1,7 +1,6 @@
 #if !defined(HANDMADE_HPP)
 
 // #include <stdint.h>
-#include <math.h>
 
 #define internal static
 #define local_persist static
@@ -107,26 +106,19 @@ struct debug_read_file_result {
   void *Contents;
 };
 
-struct game_state {
-  uint32 ToneHz;
-  int32 PlayerTileMapX;
-  int32 PlayerTileMapY;
-  real32 PlayerX;
-  real32 PlayerY;
-};
-
 struct tile_map {
   uint32 *Tiles;
 };
 
 struct world {
+  real32 TileSideInMeters;
+  int32 TileSideInPixels;
+  real32 MetersToPixels;
   int32 CountX;
   int32 CountY;
 
   real32 UpperLeftX;
   real32 UpperLeftY;
-  real32 TileWidth;
-  real32 TileHeight;
 
   int32 TileMapCountX;
   int32 TileMapCountY;
@@ -141,18 +133,13 @@ struct canonical_position {
   int32 TileX;
   int32 TileY;
 
-  // Relative to tile
-  real32 X;
-  real32 Y;
+  real32 TileRelX;
+  real32 TileRelY;
 };
 
-struct raw_position {
-  int32 TileMapX;
-  int32 TileMapY;
-
-  // Relative to tilemap
-  real32 X;
-  real32 Y;
+struct game_state {
+  uint32 ToneHz;
+  canonical_position PlayerP;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
