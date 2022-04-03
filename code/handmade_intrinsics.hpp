@@ -13,13 +13,7 @@ inline int32 TruncateReal32ToInt32(real32 realvalue) {
 }
 
 inline int32 FloorReal32ToInt32(real32 realvalue) {
-  int32 truncated;
-  if (realvalue > 0) {
-    truncated = (int32)realvalue;
-  } else {
-    truncated = (int32)(realvalue - 1);
-  }
-  return truncated;
+  return (int32)floorf(realvalue);
 }
 
 inline real32 

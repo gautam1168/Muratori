@@ -223,8 +223,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     GameState->PlayerP.TileMapY = 0;
     GameState->PlayerP.TileX = 3;
     GameState->PlayerP.TileY = 3;
-    GameState->PlayerP.TileRelX = 0.0f;
-    GameState->PlayerP.TileRelY = 0.0f;
+    GameState->PlayerP.TileRelX = 0.01f;
+    GameState->PlayerP.TileRelY = 0.5f;
     Memory->IsInitialized = true;
   }
 
@@ -250,8 +250,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
       if (Controller->MoveRight.EndedDown) {
         dPlayerX = 1.0f;
       }
-      dPlayerX *= 3.0f;
-      dPlayerY *= 3.0f;
+      dPlayerX *= 2.0f;
+      dPlayerY *= 2.0f;
 
       canonical_position NewPlayerP = GameState->PlayerP;
 
@@ -301,18 +301,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
   // Draw player
   real32 PlayerLeft = World.UpperLeftX 
     + GameState->PlayerP.TileX*World.TileSideInPixels 
-    + GameState->PlayerP.TileRelX*World.TileSideInMeters 
+    + GameState->PlayerP.TileRelX*World.MetersToPixels 
     - 0.5f*PlayerWidth*World.MetersToPixels;
 
   real32 PlayerTop = World.UpperLeftY 
     + GameState->PlayerP.TileY*World.TileSideInPixels 
-    + GameState->PlayerP.TileRelY*World.TileSideInMeters 
+    + GameState->PlayerP.TileRelY*World.MetersToPixels 
     - PlayerHeight*World.MetersToPixels;
 
   DrawRectangle(Buffer, 
     PlayerLeft, PlayerTop, 
-    PlayerLeft + PlayerWidth*10, 
-    PlayerTop + PlayerHeight*10, 
+    PlayerLeft + PlayerWidth*World.MetersToPixels, 
+    PlayerTop + PlayerHeight*World.MetersToPixels, 
     1.0f, 1.0f, 0.0f);
 }
 
