@@ -106,32 +106,39 @@ struct debug_read_file_result {
   void *Contents;
 };
 
-struct tile_map {
+struct tile_chunk {
   uint32 *Tiles;
 };
 
 struct world {
+  uint32 ChunkShift;
+  uint32 ChunkMask;
+  uint32 ChunkDim;
+
   real32 TileSideInMeters;
   int32 TileSideInPixels;
   real32 MetersToPixels;
-  int32 CountX;
-  int32 CountY;
 
-  real32 UpperLeftX;
-  real32 UpperLeftY;
+  int32 TileChunkCountX;
+  int32 TileChunkCountY;
 
-  int32 TileMapCountX;
-  int32 TileMapCountY;
-
-  tile_map *TileMaps;
+  tile_chunk *TileChunks;
 };
 
-struct canonical_position {
-  int32 TileMapX;
-  int32 TileMapY;
+struct tile_chunk_position {
+  uint32 TileChunkX;
+  uint32 TileChunkY;
 
-  int32 TileX;
-  int32 TileY;
+  uint32 RelTileX;
+  uint32 RelTileY;
+};
+
+struct world_position {
+  // int32 TileMapX;
+  // int32 TileMapY;
+
+  uint32 AbsTileX;
+  uint32 AbsTileY;
 
   real32 TileRelX;
   real32 TileRelY;
@@ -139,7 +146,7 @@ struct canonical_position {
 
 struct game_state {
   uint32 ToneHz;
-  canonical_position PlayerP;
+  world_position PlayerP;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
