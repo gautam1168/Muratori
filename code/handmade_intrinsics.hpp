@@ -1,11 +1,11 @@
 #if !defined(HANDMADE_INTINSICS_HPP)
 #include "math.h"
 inline int32 RoundReal32ToInt32(real32 realvalue) {
-  return (int32)(realvalue + 0.5f);
+  return (int32)roundf(realvalue);
 }
 
 inline uint32 RoundReal32ToUInt32(real32 realvalue) {
-  return (uint32)(realvalue + 0.5f);
+  return (uint32)roundf(realvalue);
 }
 
 inline int32 TruncateReal32ToInt32(real32 realvalue) {

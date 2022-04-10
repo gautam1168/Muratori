@@ -17,6 +17,8 @@ typedef char int8;
 typedef short int16;
 typedef long int32;
 typedef long long int64;
+
+typedef size_t memory_index;
 /*
 typedef uint8_t  uint8;
 typedef uint16_t uint16;
@@ -106,47 +108,24 @@ struct debug_read_file_result {
   void *Contents;
 };
 
-struct tile_chunk {
-  uint32 *Tiles;
+#include "handmade_intrinsics.hpp"
+#include "handmade_tile.hpp"
+
+struct memory_arena {
+  memory_index Size;
+  uint8 *Base;
+  memory_index Used;
 };
 
 struct world {
-  uint32 ChunkShift;
-  uint32 ChunkMask;
-  uint32 ChunkDim;
-
-  real32 TileSideInMeters;
-  int32 TileSideInPixels;
-  real32 MetersToPixels;
-
-  int32 TileChunkCountX;
-  int32 TileChunkCountY;
-
-  tile_chunk *TileChunks;
-};
-
-struct tile_chunk_position {
-  uint32 TileChunkX;
-  uint32 TileChunkY;
-
-  uint32 RelTileX;
-  uint32 RelTileY;
-};
-
-struct world_position {
-  // int32 TileMapX;
-  // int32 TileMapY;
-
-  uint32 AbsTileX;
-  uint32 AbsTileY;
-
-  real32 TileRelX;
-  real32 TileRelY;
+  tile_map *TileMap;
 };
 
 struct game_state {
   uint32 ToneHz;
-  world_position PlayerP;
+  memory_arena WorldArena;
+  world *World;
+  tile_map_position PlayerP;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
