@@ -54,6 +54,11 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
       }
     }
     CloseHandle(FileHandle);
+  } else {
+    char Temp[64];
+    DWORD Error = GetLastError();
+    wsprintf(Temp, "Error when reading file! Error code: %d", Error);
+    OutputDebugString(Temp);
   }
   return Result;
 }

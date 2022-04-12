@@ -76,6 +76,34 @@ inline uint32 SafeTruncateUint64(uint64 Value) {
   return (uint32)Value;
 }
 
+#pragma pack(push, 1)
+struct bitmap_header {
+  uint16 FileType;
+  uint32 FileSize;
+  uint16 Reserved1;
+  uint16 Reserved2;
+  uint32 BitmapOffset;
+  uint32 Size;
+  uint32 Width;
+  uint32 Height;
+  uint16 Planes;
+  uint16 BitsPerPixel;
+};
+#pragma pack(pop)
+
+internal uint32 *
+DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile, char *Filename)
+{
+  uint32 *Result = 0;
+  debug_read_file_result ReadResult = ReadEntireFile(Thread, Filename);
+  if (ReadResult.ContentSize != 0) {
+    bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
+    uint32 *Pixels = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
+    Result = Pixels;
+  }
+  return Result;
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
   Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
   game_state *GameState = (game_state *)Memory->PermanentStorage;
@@ -91,6 +119,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
   }
 
   if (!Memory->IsInitialized) {
+    GameState->PixelPointer = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
     GameState->PlayerP.AbsTileX = 1;
     GameState->PlayerP.AbsTileY = 1;
     GameState->PlayerP.TileRelX = 0.5f;
@@ -363,6 +392,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     PlayerLeft + PlayerWidth*MetersToPixels, 
     PlayerTop + PlayerHeight*MetersToPixels, 
     1.0f, 1.0f, 0.0f);
+
+#if 0
+  uint32 *Source = GameState->PixelPointer;
+  uint32 *Dest = (uint32 *)Buffer->Memory;
+  for (int32 Y = 0;
+    Y < Buffer->Height;
+    Y++)
+  {
+    for (int32 X = 0;
+      X < Buffer->Width;
+      X++) 
+    {
+      *Dest++ = *Source++;
+    }
+  }
+#endif
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {

@@ -145,6 +145,7 @@ struct game_state {
   memory_arena WorldArena;
   world *World;
   tile_map_position PlayerP;
+  uint32* PixelPointer;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
