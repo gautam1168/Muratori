@@ -140,12 +140,23 @@ struct world {
   tile_map *TileMap;
 };
 
+struct loaded_bitmap {
+  int32 Width;
+  int32 Height;
+  uint32 *Pixels;
+};
+
 struct game_state {
   uint32 ToneHz;
   memory_arena WorldArena;
   world *World;
   tile_map_position PlayerP;
-  uint32* PixelPointer;
+
+  loaded_bitmap Backdrop;
+
+  loaded_bitmap HeroHead;
+  loaded_bitmap HeroCape;
+  loaded_bitmap HeroTorso;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
