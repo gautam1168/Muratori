@@ -44,6 +44,16 @@ struct bitmap_header {
   uint32 Height;
   uint16 Planes;
   uint16 BitsPerPixel;
+  uint32 Compression;
+  uint32 ImageSize; 
+  uint32 XPixelsPerM;
+  uint32 YPixelsPerM;
+  uint32 ColorsUsed;
+  uint32 ImportantColors;
+  uint32 RedMask;
+  uint32 GreenMask;
+  uint32 BlueMask;
+  uint32 AlphaMask;
 };
 #pragma pack(pop)
 
@@ -60,23 +70,36 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
     Result.Pixels = Pixels;
     Result.Width = Header->Width;
     Result.Height = Header->Height;
+
+    Assert((Header->AlphaMask | Header->GreenMask | Header->BlueMask | Header->RedMask) == 0xFFFFFFFF);
+    uint32 RedShift = 0;
+    uint32 BlueShift = 0;
+    uint32 GreenShift = 0;
+    uint32 AlphaShift = 0;
+
+    Assert(FindLowestSetBit(&RedShift, Header->RedMask));
+    Assert(FindLowestSetBit(&GreenShift, Header->GreenMask));
+    Assert(FindLowestSetBit(&BlueShift, Header->BlueMask));
+    Assert(FindLowestSetBit(&AlphaShift, Header->AlphaMask));
     
-    // uint32 *ShiftedSource = Pixels;
-    // for (uint32 Y = 0; 
-    //   Y < Header->Width;
-    //   Y++) 
-    // {
-    //   for (uint32 X = 0;
-    //     X < Header->Height;
-    //     X++)
-    //   {
-    //     uint8 AA = (uint8)((*ShiftedSource | 0xff000000) >> 24);
-    //     uint8 BB = (uint8)((*ShiftedSource | 0x00ff0000) >> 16);
-    //     uint8 GG = (uint8)((*ShiftedSource | 0x0000ff00) >> 8);
-    //     uint8 RR = (uint8)(*ShiftedSource | 0x000000ff);
-    //     *ShiftedSource++ = (AA << 24) | (RR << 16) | (GG << 8) | BB;
-    //   }
-    // }
+    uint32 *SourceDest = Pixels;
+    for (uint32 Y = 0;
+      Y < Header->Height;
+      Y++) 
+    {
+      for (uint32 X = 0;
+        X < Header->Width;
+        X++) 
+      {
+        uint32 C = *SourceDest;
+        *SourceDest++ = (
+          (((C >> AlphaShift) & 0xFF) << 24) |
+          (((C >> RedShift) & 0xFF) << 16) |
+          (((C >> GreenShift) & 0xFF) << 8) |
+          (((C >> BlueShift) & 0xFF))
+        );
+      }
+    }
   }
   return Result;
 }
@@ -153,7 +176,6 @@ DrawBitmap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, real32 RealX, r
 
   uint32 *SourceRow = Bitmap->Pixels + Bitmap->Width * (Bitmap->Height - 1);
   uint8 *DestRow = (uint8 *)Buffer->Memory + MinX*Buffer->BytesPerPixel + MinY*Buffer->Pitch;
-  int32 PixelsCopied = 0;
   for (int32 Y = MinY;
     Y < MaxY;
     Y++)
@@ -164,8 +186,24 @@ DrawBitmap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, real32 RealX, r
       X < MaxX;
       X++) 
     {
-      *Dest++ = *Source++;
-      PixelsCopied++;
+      real32 A = (real32)((*Source >> 24) & 0xFF) / 255.0f;
+      real32 SR = (real32)((*Source >> 16) & 0xFF);
+      real32 SG = (real32)((*Source >> 8) & 0xFF);
+      real32 SB = (real32)(*Source & 0xFF);
+      
+      real32 DR = (real32)((*Dest >> 16) & 0xFF);
+      real32 DG = (real32)((*Dest >> 8) & 0xFF);
+      real32 DB = (real32)(*Dest & 0xFF);
+ 
+      real32 R = (1.0f - A)*DR + A * SR;
+      real32 G = (1.0f - A)*DG + A * SG;
+      real32 B = (1.0f - A)*DB + A * SB;
+
+      *Dest = (TruncateReal32ToInt32(R) << 16) |
+              (TruncateReal32ToInt32(G) << 8) |
+              TruncateReal32ToInt32(B);
+      Dest++;
+      Source++;
     }
     DestRow += Buffer->Pitch;
     SourceRow -= Bitmap->Width;

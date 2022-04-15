@@ -26,6 +26,27 @@ Cos(real32 Angle) {
   return cosf(Angle);
 }
 
+inline bool
+FindLowestSetBit(uint32 *Index, uint32 Mask) {
+  bool Found = false;
+#if COMPILER_MSVC
+  Found = _BitScanForward(Index, Mask);
+#else
+  for (uint32 Test = 0;
+    Test < 32;
+    Test++)
+  {
+    if (Mask & (1 << Test)) {
+      Found = true;
+      *Index = Test;
+      break;
+    }
+  }
+#endif
+  return Found;
+}
+
+
 // inline real32 
 // ATan2(real32 Y, real32 X) {
 //   return atan2(Y, X);
