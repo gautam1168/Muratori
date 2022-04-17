@@ -164,17 +164,22 @@ struct loaded_bitmap {
   uint32 *Pixels;
 };
 
+struct hero_bitmaps {
+  int32 AlignX;
+  int32 AlignY;
+  loaded_bitmap Body;
+};
+
 struct game_state {
   uint32 ToneHz;
   memory_arena WorldArena;
   world *World;
   tile_map_position PlayerP;
+  tile_map_position CameraP;
 
   loaded_bitmap Backdrop;
-
-  loaded_bitmap HeroHead;
-  loaded_bitmap HeroCape;
-  loaded_bitmap HeroTorso;
+  uint32 HeroFacingDirection;
+  hero_bitmaps HeroBitmaps[4];
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)

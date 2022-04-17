@@ -1,5 +1,11 @@
 #if !defined(HANDMADE_TILE_HPP)
 
+struct tile_map_difference {
+  real32 dX;
+  real32 dY;
+  real32 dZ;
+};
+
 struct tile_map_position {
   // Fixed point tile locations. High bits are tile chunk index and low bits are tile index in the chunk
   uint32 AbsTileX;
