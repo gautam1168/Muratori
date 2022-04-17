@@ -12,6 +12,35 @@ global_variable win32_offscreen_buffer GlobalBackBuffer;
 // global_variable int XOffset = 0, YOffset = 0;
 global_variable LPDIRECTSOUNDBUFFER SecondaryBuffer;
 global_variable win32_sound_output SoundOutput;
+global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
+
+// This function is from Raymond Chen: https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
+internal void 
+ToggleFullscreen(HWND Window)
+{
+  DWORD Style = GetWindowLong(Window, GWL_STYLE);
+  if (Style & WS_OVERLAPPEDWINDOW) {
+    MONITORINFO MonitorInfo = { sizeof(MonitorInfo) };
+    if (GetWindowPlacement(Window, &GlobalWindowPosition) &&
+      GetMonitorInfo(MonitorFromWindow(Window,
+                       MONITOR_DEFAULTTOPRIMARY), &MonitorInfo)) {
+      SetWindowLong(Window, GWL_STYLE,
+                    Style & ~WS_OVERLAPPEDWINDOW);
+      SetWindowPos(Window, HWND_TOP,
+                   MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                   MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                   MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                   SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+  } else {
+    SetWindowLong(Window, GWL_STYLE,
+                  Style | WS_OVERLAPPEDWINDOW);
+    SetWindowPlacement(Window, &GlobalWindowPosition);
+    SetWindowPos(Window, 0, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                 SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+  }
+}
 
 typedef DWORD WINAPI x_input_get_state(DWORD dwUserIndex, XINPUT_STATE *pState);
 DWORD WINAPI xInputGetStateStub(DWORD dwUserIndex, XINPUT_STATE *pState) {
@@ -262,24 +291,39 @@ internal void InitializeGlobalBackBuffer(win32_offscreen_buffer* Buffer, int Wid
 }
 
 internal void Win32DisplayBufferInWindow(HDC DeviceContext, win32_window_dimensions WinDims, win32_offscreen_buffer Buffer) {
-  int OffsetX = 10;
-  int OffsetY = 10;
+  if ((WinDims.Width >= Buffer.Width * 2) && (WinDims.Height >= Buffer.Height * 2))
+  {
+    StretchDIBits(
+      DeviceContext,
+      0, 0, 2*Buffer.Width, 2*Buffer.Height,
+      0, 0, Buffer.Width, Buffer.Height,
+      Buffer.Memory, 
+      &Buffer.BitmapInfo,
+      DIB_RGB_COLORS,
+      SRCCOPY
+    );
+  }
+  else 
+  {
+    int OffsetX = 10;
+    int OffsetY = 10;
 
-  PatBlt(DeviceContext, 0, 0, WinDims.Width, OffsetY, BLACKNESS);
-  PatBlt(DeviceContext, 0, OffsetY + Buffer.Height, WinDims.Width, WinDims.Height, BLACKNESS);
-  PatBlt(DeviceContext, 0, 0, OffsetX, WinDims.Width, BLACKNESS);
-  PatBlt(DeviceContext, OffsetX + Buffer.Width, 0, WinDims.Width, WinDims.Height, BLACKNESS);
+    PatBlt(DeviceContext, 0, 0, WinDims.Width, OffsetY, BLACKNESS);
+    PatBlt(DeviceContext, 0, OffsetY + Buffer.Height, WinDims.Width, WinDims.Height, BLACKNESS);
+    PatBlt(DeviceContext, 0, 0, OffsetX, WinDims.Width, BLACKNESS);
+    PatBlt(DeviceContext, OffsetX + Buffer.Width, 0, WinDims.Width, WinDims.Height, BLACKNESS);
 
-  StretchDIBits(
-    DeviceContext,
-    // 0, 0, WinDims.Width, WinDims.Height,
-    OffsetX, OffsetY, Buffer.Width, Buffer.Height,
-    0, 0, Buffer.Width, Buffer.Height,
-    Buffer.Memory, 
-    &Buffer.BitmapInfo,
-    DIB_RGB_COLORS,
-    SRCCOPY
-  );
+    StretchDIBits(
+      DeviceContext,
+      // 0, 0, WinDims.Width, WinDims.Height,
+      OffsetX, OffsetY, Buffer.Width, Buffer.Height,
+      0, 0, Buffer.Width, Buffer.Height,
+      Buffer.Memory, 
+      &Buffer.BitmapInfo,
+      DIB_RGB_COLORS,
+      SRCCOPY
+    );
+  }
 }
 
 internal void Win32ProcessXInputDigitalButton(
@@ -573,6 +617,12 @@ internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controll
         if ((VKCode == VK_F4) && AltKeyWasDown)
         {
           Running = false;
+        }
+
+        if (IsDown && Message.hwnd) {
+          if ((VKCode == VK_RETURN) && AltKeyWasDown) {
+            ToggleFullscreen(Message.hwnd);
+          }
         }
       }
     }
