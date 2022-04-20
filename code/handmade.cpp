@@ -534,7 +534,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         v2 TileSide = { 0.5f * TileSideInPixels, 0.5f * TileSideInPixels };
         v2 Cen = {ScreenCenterX - GameState->CameraP.Offset.X*MetersToPixels + ((real32)RelColumn) * TileSideInPixels,
         ScreenCenterY + GameState->CameraP.Offset.Y*MetersToPixels - ((real32)RelRow) * TileSideInPixels};
-        v2 Min = CenX - TileSide;
+        v2 Min = Cen - TileSide;
         v2 Max = Cen + TileSide;
         DrawRectangle(Buffer, Min, Max, Gray, Gray, Gray);
       }
