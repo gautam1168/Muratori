@@ -177,6 +177,8 @@ struct game_state {
   tile_map_position PlayerP;
   tile_map_position CameraP;
 
+  v2 dPlayerP;
+
   loaded_bitmap Backdrop;
   uint32 HeroFacingDirection;
   hero_bitmaps HeroBitmaps[4];

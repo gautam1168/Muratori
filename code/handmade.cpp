@@ -424,35 +424,44 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     if (Controller->IsAnalog) {
 
     } else {
-      v2 dPlayer = {};
+      v2 ddPlayer = {};
       if (Controller->MoveUp.EndedDown) {
         GameState->HeroFacingDirection = 1;
-        dPlayer.Y = 1.0f;
+        ddPlayer.Y = 1.0f;
       }
       if (Controller->MoveDown.EndedDown) {
         GameState->HeroFacingDirection = 3;
-        dPlayer.Y = -1.0f;
+        ddPlayer.Y = -1.0f;
       }
       if (Controller->MoveLeft.EndedDown) {
         GameState->HeroFacingDirection = 2;
-        dPlayer.X = -1.0f;
+        ddPlayer.X = -1.0f;
       }
       if (Controller->MoveRight.EndedDown) {
         GameState->HeroFacingDirection = 0;
-        dPlayer.X = 1.0f;
+        ddPlayer.X = 1.0f;
       }
-      real32 PlayerSpeed = 5.0f;
+
+      real32 PlayerSpeed = 120.0f;
       if (Controller->ActionUp.EndedDown) {
-        PlayerSpeed = 20.0f;
+        PlayerSpeed = 320.0f;
       }
-      if ((dPlayer.X != 0.0f) && (dPlayer.Y != 0.0f)) {
-        dPlayer *= 0.707106f;
+
+      if ((ddPlayer.X != 0.0f) && (ddPlayer.Y != 0.0f)) {
+        ddPlayer *= 0.707106f;
       }
-      dPlayer *= PlayerSpeed;
+
+      ddPlayer *= PlayerSpeed;
+      ddPlayer += -10.0f*GameState->dPlayerP;
 
       tile_map_position NewPlayerP = GameState->PlayerP;
 
-      NewPlayerP.Offset = GameState->PlayerP.Offset +  Input->dtForFrame * dPlayer;
+      NewPlayerP.Offset = GameState->PlayerP.Offset 
+        + Input->dtForFrame * GameState->dPlayerP  
+        + 0.5f * Square(Input->dtForFrame) * ddPlayer ;
+
+      GameState->dPlayerP = GameState->dPlayerP + Input->dtForFrame * ddPlayer;
+
       NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
 
       tile_map_position PlayerLeft = NewPlayerP;

@@ -55,5 +55,12 @@ inline v2 operator-(v2 A, v2 B)
   Result.Y = A.Y - B.Y;
   return Result;
 }
+
+inline real32
+Square(real32 A) {
+  real32 Result = A * A;
+  return Result;
+}
+
 #define HANDMADE_MATH_HPP
 #endif
