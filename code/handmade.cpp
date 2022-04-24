@@ -471,11 +471,44 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
       tile_map_position PlayerRight = NewPlayerP;
       PlayerRight.Offset.X += 0.5f*PlayerWidth;
       PlayerRight = ReCanonicalizePosition(TileMap, PlayerRight);
-      
-      if (IsTileMapPointEmpty(TileMap, NewPlayerP) &&
-          IsTileMapPointEmpty(TileMap, PlayerLeft) &&
-          IsTileMapPointEmpty(TileMap, PlayerRight)
-          ) {
+
+      bool Collided = false;
+      tile_map_position ColP = {};
+      if (!IsTileMapPointEmpty(TileMap, NewPlayerP)) {
+        ColP = NewPlayerP;
+        Collided = true;
+      }
+      if (!IsTileMapPointEmpty(TileMap, PlayerLeft)) {
+        ColP = PlayerLeft;
+        Collided = true;
+      }
+      if (!IsTileMapPointEmpty(TileMap, PlayerRight)) {
+        ColP = PlayerRight;
+        Collided = true;
+      }
+      if (Collided) 
+      {
+        v2 R = {};
+        // Left wall
+        if (ColP.AbsTileX < GameState->PlayerP.AbsTileX) {
+          R = v2{1, 0};
+        }
+        // Right wall
+        if (ColP.AbsTileX > GameState->PlayerP.AbsTileX) {
+          R = v2{-1, 0};
+        }
+        // Top wall
+        if (ColP.AbsTileY > GameState->PlayerP.AbsTileY) {
+          R = v2{0, 1};
+        }
+        // Bottom wall
+        if (ColP.AbsTileY < GameState->PlayerP.AbsTileY) {
+          R = v2{0, -1};
+        }
+        GameState->dPlayerP = GameState->dPlayerP - 1 * Inner(GameState->dPlayerP, R) * R;
+      }
+      else 
+      {
         if (!AreOnSameTile(&GameState->PlayerP, &NewPlayerP)) {
           uint32 NewTileValue = GetTileValue(TileMap, NewPlayerP);
           if (NewTileValue == 3)
@@ -493,11 +526,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
       tile_map_difference Difference = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
       if (Difference.dXY.X > (9.0f * TileMap->TileSideInMeters)) {
-        GameState->CameraP.AbsTileX += 16;
+        GameState->CameraP.AbsTileX += 17;
       }
 
       if (Difference.dXY.X < (-9.0f * TileMap->TileSideInMeters)) {
-        GameState->CameraP.AbsTileX -= 16;
+        GameState->CameraP.AbsTileX -= 17;
       }
 
       if (Difference.dXY.Y > (5.0f * TileMap->TileSideInMeters)) {
