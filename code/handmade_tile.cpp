@@ -93,12 +93,18 @@ GetTileValue(tile_map *TileMap, tile_map_position Position) {
   return TileChunkValue;
 }
 
+internal bool
+IsTileValueEmpty(uint32 TileValue) {
+  bool Empty = ((TileValue == 1) ||
+                (TileValue == 3) ||
+                (TileValue == 4));
+  return Empty;
+}
+
 internal bool 
 IsTileMapPointEmpty(tile_map *TileMap, tile_map_position CanPos) {
   uint32 TileChunkValue = GetTileValue(TileMap, CanPos);
-  bool Empty = ((TileChunkValue == 1) ||
-                (TileChunkValue == 3) ||
-                (TileChunkValue == 4));
+  bool Empty = IsTileValueEmpty(TileChunkValue);
   return Empty;
 }
 
@@ -132,7 +138,7 @@ AreOnSameTile(tile_map_position *A, tile_map_position *B) {
   return Result;
 }
 
-tile_map_difference 
+inline tile_map_difference 
 Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
   tile_map_difference Result;
 
@@ -142,6 +148,16 @@ Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
 
   Result.dXY = TileMap->TileSideInMeters * dTileXY + (A->Offset - B->Offset);
   Result.dZ = TileMap->TileSideInMeters * dTileZ;
+
+  return Result;
+}
+
+inline tile_map_position
+CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+  tile_map_position Result = {};
+  Result.AbsTileX = AbsTileX;
+  Result.AbsTileY = AbsTileY;
+  Result.AbsTileZ = AbsTileZ;
 
   return Result;
 }
