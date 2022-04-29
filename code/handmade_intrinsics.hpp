@@ -1,5 +1,13 @@
 #if !defined(HANDMADE_INTINSICS_HPP)
 #include "math.h"
+
+inline real32
+AbsoluteValue(real32 val)
+{
+  real32 Result = (real32)fabs(val);
+  return Result;
+}
+
 inline int32 RoundReal32ToInt32(real32 realvalue) {
   return (int32)roundf(realvalue);
 }

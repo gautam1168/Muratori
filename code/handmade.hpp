@@ -97,13 +97,14 @@ struct game_button_state {
 };
 
 struct game_controller_input {
+  bool IsConnected;
   bool IsAnalog;
 
   real32 StickAverageX;
   real32 StickAverageY;
     
   union {
-    game_button_state Buttons[10];
+    game_button_state Buttons[12];
     struct {
       game_button_state MoveUp;
       game_button_state MoveDown;
@@ -117,6 +118,11 @@ struct game_controller_input {
 
       game_button_state LeftShoulder;
       game_button_state RightShoulder;
+
+      game_button_state Back;
+      game_button_state Start;
+
+      game_button_state Terminator;
     };
   };
 };
@@ -128,6 +134,14 @@ struct debug_read_file_result {
 
 #include "handmade_intrinsics.hpp"
 #include "handmade_tile.hpp"
+
+struct game_input {
+  game_button_state MouseButtons[5];
+  int32 MouseX, MouseY, MouseZ;
+  real32 dtForFrame;
+  game_controller_input Controllers[5];
+};
+
 
 struct memory_arena {
   memory_index Size;
@@ -170,17 +184,26 @@ struct hero_bitmaps {
   loaded_bitmap Body;
 };
 
+struct entity {
+  bool Exists;
+  tile_map_position P;
+  v2 dP;
+  uint32 FacingDirection;
+  real32 Width, Height;
+};
+
 struct game_state {
   uint32 ToneHz;
   memory_arena WorldArena;
   world *World;
-  tile_map_position PlayerP;
+  uint32 CamerFollowingEntityIndex;
   tile_map_position CameraP;
 
-  v2 dPlayerP;
+  uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
+  uint32 EntityCount;
+  entity Entities[256];
 
   loaded_bitmap Backdrop;
-  uint32 HeroFacingDirection;
   hero_bitmaps HeroBitmaps[4];
 };
 
@@ -203,13 +226,6 @@ struct game_memory {
   debug_platform_read_entire_file *DEBUGPlatformReadEntireFile;
   debug_platform_free_file_memory *DEBUGPlatformFreeFileMemory;
   debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
-};
-
-struct game_input {
-  game_button_state MouseButtons[5];
-  int32 MouseX, MouseY, MouseZ;
-  real32 dtForFrame;
-  game_controller_input Controllers[5];
 };
 
 inline game_controller_input *GetController(game_input *Input, int ControllerIndex) {
