@@ -293,6 +293,8 @@ MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 ddP)
   Entity->dP = Entity->dP + dt * ddP;
 
   tile_map_position NewPlayerP = OldPlayerP;
+  NewPlayerP.Offset += PlayerDelta;
+  NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
 #if 0
   NewPlayerP.Offset += PlayerDelta;
   NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
@@ -368,7 +370,7 @@ MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 ddP)
     {
       tile_map_position TestTileP = CenteredTilePoint(AbsTileX, AbsTileY, AbsTileZ);
       uint32 TileValue = GetTileValue(TileMap, TestTileP);
-      if (IsTileValueEmpty(TileValue)) {
+      if (!IsTileValueEmpty(TileValue)) {
         v2 MinCorner = -0.5f * v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
         v2 MaxCorner =  0.5f * v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
 
