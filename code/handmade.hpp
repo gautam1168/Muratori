@@ -132,6 +132,9 @@ struct debug_read_file_result {
   void *Contents;
 };
 
+#define Minimum(A, B) ((A < B) ? (A) : (B))
+#define Maximum(A, B) ((A > B) ? (A) : (B))
+
 #include "handmade_intrinsics.hpp"
 #include "handmade_tile.hpp"
 

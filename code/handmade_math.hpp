@@ -57,6 +57,12 @@ inline v2 operator-(v2 A, v2 B)
 }
 
 inline real32
+SquareRoot(real32 A) {
+  real32 Result = sqrtf(A);
+  return Result;
+}
+
+inline real32
 Square(real32 A) {
   real32 Result = A * A;
   return Result;

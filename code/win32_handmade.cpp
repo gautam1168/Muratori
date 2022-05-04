@@ -1118,7 +1118,7 @@ int WINAPI wWinMain(
               SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
             }
           } else {
-            OutputDebugString("Frame missed?");
+            OutputDebugString("Frame missed?\n");
           }
 
           LARGE_INTEGER EndCounter = Win32GetWallClock();
