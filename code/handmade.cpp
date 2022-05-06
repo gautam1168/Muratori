@@ -257,7 +257,7 @@ TestWall(real32 WallX, real32 RelX, real32 RelY, real32 PlayerDeltaX, real32 Pla
   real32 *tMin, real32 MinY, real32 MaxY)
 {
   real32 tEpsilon = 0.01f;
-  if (PlayerDeltaX != 0)
+  if (PlayerDeltaX != 0.0f)
   {
     real32 tResult = (WallX - RelX) / PlayerDeltaX;
     real32 Y = RelY + tResult * PlayerDeltaY;
@@ -279,21 +279,21 @@ MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 ddP)
     ddP = (1.0f/SquareRoot(ddPLength)) * ddP;
   }
 
-  real32 PlayerSpeed = 150.0f;
+  real32 PlayerSpeed = 50.0f;
   // if (Controller->ActionUp.EndedDown)
   // {
   //   PlayerSpeed = 320.0f;
   // }
 
   ddP *= PlayerSpeed;
-  ddP += -30.0f * Entity->dP;
+  ddP += -8.0f * Entity->dP;
 
   tile_map_position OldPlayerP = Entity->P;
-  v2 PlayerDelta = dt * Entity->dP + 0.5f * Square(dt) * ddP;
-  Entity->dP = Entity->dP + dt * ddP;
-
   tile_map_position NewPlayerP = OldPlayerP;
+  v2 PlayerDelta = dt * Entity->dP + 0.5f * Square(dt) * ddP;
+
   NewPlayerP.Offset += PlayerDelta;
+  Entity->dP = Entity->dP + dt * ddP;
   NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
 #if 0
   NewPlayerP.Offset += PlayerDelta;
@@ -381,13 +381,14 @@ MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 ddP)
           &tMin, MinCorner.Y, MaxCorner.Y);
         TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
           &tMin, MinCorner.Y, MaxCorner.Y);
-        TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.X, PlayerDelta.X,
+        TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
           &tMin, MinCorner.X, MaxCorner.X);
-        TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.X, PlayerDelta.X,
+        TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
           &tMin, MinCorner.X, MaxCorner.X);
       }
     }
   }
+  NewPlayerP = OldPlayerP;
   NewPlayerP.Offset += tMin * PlayerDelta;
   Entity->P = NewPlayerP;
   NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
