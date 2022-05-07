@@ -1,6 +1,12 @@
 #if !defined(HANDMADE_INTINSICS_HPP)
 #include "math.h"
 
+inline int32
+SignOf(int32 Value) {
+  int32 Result = Value >= 0 ? 1 : -1;
+  return Result;
+}
+
 inline real32
 AbsoluteValue(real32 val)
 {

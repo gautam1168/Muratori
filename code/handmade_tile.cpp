@@ -14,8 +14,8 @@ ReCanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRel) {
 internal tile_map_position
 ReCanonicalizePosition(tile_map *TileMap, tile_map_position Pos) { 
   tile_map_position Result = Pos;
-  ReCanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset.X);
-  ReCanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset.Y);
+  ReCanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset_.X);
+  ReCanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset_.Y);
   return Result;
 }
 
@@ -146,7 +146,7 @@ Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
     (real32)A->AbsTileY - (real32)B->AbsTileY};
   real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
 
-  Result.dXY = TileMap->TileSideInMeters * dTileXY + (A->Offset - B->Offset);
+  Result.dXY = TileMap->TileSideInMeters * dTileXY + (A->Offset_ - B->Offset_);
   Result.dZ = TileMap->TileSideInMeters * dTileZ;
 
   return Result;
@@ -160,4 +160,11 @@ CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   Result.AbsTileZ = AbsTileZ;
 
   return Result;
+}
+
+inline tile_map_position
+Offset(tile_map *TileMap, tile_map_position P, v2 Offset) {
+  P.Offset_ += Offset;
+  P = ReCanonicalizePosition(TileMap, P);
+  return P;
 }
