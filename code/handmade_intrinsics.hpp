@@ -30,6 +30,10 @@ inline int32 FloorReal32ToInt32(real32 realvalue) {
   return (int32)floorf(realvalue);
 }
 
+inline int32 CeilReal32ToInt32(real32 realvalue) {
+  return (int32)ceilf(realvalue);
+}
+
 inline real32 
 Sin(real32 Angle) {
   return sinf(Angle);
