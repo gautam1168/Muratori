@@ -198,6 +198,7 @@ struct high_entity {
   bool Exists;
   v2 P;
   v2 dP;
+  uint32 AbsTileZ;
   uint32 FacingDirection;
 };
 
@@ -207,6 +208,9 @@ struct low_entity {
 struct dormant_entity {
   tile_map_position P;
   real32 Width, Height;
+
+  bool Collides;
+  int32 dAbsTileZ; // for stairs
 };
 
 struct entity {
