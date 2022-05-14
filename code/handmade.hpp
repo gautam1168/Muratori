@@ -187,11 +187,17 @@ struct hero_bitmaps {
   loaded_bitmap Body;
 };
 
+enum entity_type {
+  EntityType_Null,
+  EntityType_Hero,
+  EntityType_Wall
+};
+
 enum entity_residence {
   EntityResidence_NonExistant,
   EntityResidence_Dormant,
-  EntityResidence_High,
   EntityResidence_Low,
+  EntityResidence_High,
 };
 
 struct high_entity {
@@ -206,12 +212,15 @@ struct low_entity {
 };
 
 struct dormant_entity {
+  entity_type Type;
   tile_map_position P;
   real32 Width, Height;
 
   bool Collides;
   int32 dAbsTileZ; // for stairs
 };
+
+
 
 struct entity {
   entity_residence Residence;
