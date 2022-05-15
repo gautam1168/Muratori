@@ -537,11 +537,13 @@ SetCamera(game_state *GameState, tile_map_position NewCameraP) {
     low_entity *Low = GameState->LowEntities + EntityIndex;
     if (Low->HighEntityIndex == 0)
     {
+#if 0
       if (Low->P.AbsTileZ == NewCameraP.AbsTileZ &&
           Low->P.AbsTileX >= MinTileX &&
           Low->P.AbsTileX <= MaxTileX &&
           Low->P.AbsTileY >= MinTileY &&
           Low->P.AbsTileY <= MaxTileY)
+#endif
       {
         MakeEntityHighFrequency(GameState, EntityIndex);
       }
