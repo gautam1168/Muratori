@@ -333,8 +333,7 @@ AddPlayer(game_state *GameState)
 {
   uint32 EntityIndex = AddLowEntity(GameState, EntityType_Hero);
   low_entity *Entity = GetLowEntity(GameState, EntityIndex);
-  Entity->P.AbsTileX = 8;
-  Entity->P.AbsTileY = 5;
+  Entity->P = GameState->CameraP;
   Entity->P.Offset_.X = 0;
   Entity->P.Offset_.Y = 0;
   Entity->Height = 0.5f;
@@ -599,30 +598,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     World->TileMap = PushStruct(&GameState->WorldArena, tile_map);
 
     tile_map *TileMap = World->TileMap;
+    InitializeTileMap(TileMap, 1.4f);
 
-    TileMap->ChunkShift = 4;
-    TileMap->ChunkMask = (1 << TileMap->ChunkShift) - 1;
-    TileMap->ChunkDim = (1 << TileMap->ChunkShift);
-
-    TileMap->TileChunkCountX = 128;
-    TileMap->TileChunkCountY = 128; 
-    TileMap->TileChunkCountZ = 2;
-
-    TileMap->TileChunks = PushArray(
-      &GameState->WorldArena, 
-      TileMap->TileChunkCountX*TileMap->TileChunkCountY*TileMap->TileChunkCountZ, 
-      tile_chunk
-    );
-
-    TileMap->TileSideInMeters = 1.4f;
     MetersToPixels = (real32)TileSideInPixels/(real32)TileMap->TileSideInMeters;
     uint32 RandomNumberIndex = 0;
 
     uint32 TilesPerWidth = 17;
     uint32 TilesPerHeight = 9;
-    uint32 ScreenX = 0;
-    uint32 ScreenY = 0;
-    uint32 AbsTileZ = 0;
+    uint32 ScreenBaseX = (UINT32_MAX / TilesPerWidth) / 2;
+    uint32 ScreenBaseY = (UINT32_MAX / TilesPerHeight) / 2;
+    uint32 ScreenBaseZ = UINT32_MAX / 2;
+    uint32 ScreenX = ScreenBaseX;
+    uint32 ScreenY = ScreenBaseY;
+    uint32 AbsTileZ = ScreenBaseZ;
 
     bool DoorLeft = false;
     bool DoorRight = false;
@@ -647,7 +635,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
       if (RandomChoice == 2)
       {
         CreatedZDoor = true;
-        if (AbsTileZ == 0) {
+        if (AbsTileZ == ScreenBaseZ) {
           DoorUp = true;
         } else {
           DoorDown = 0;
@@ -730,10 +718,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
       if (RandomChoice == 2)
       {
-        if (AbsTileZ == 0) {
-          AbsTileZ = 1;
+        if (AbsTileZ == ScreenBaseZ) {
+          AbsTileZ = ScreenBaseZ + 1;
         } else {
-          AbsTileZ = 0;
+          AbsTileZ = ScreenBaseZ;
         }
       } else if (RandomChoice == 1) {
         ScreenX += 1;
@@ -742,9 +730,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
       }
     }
     tile_map_position NewCameraP = {};
-    NewCameraP.AbsTileX = 17/2;
-    NewCameraP.AbsTileY = 9/2;
-    NewCameraP.AbsTileZ = 0;
+    NewCameraP.AbsTileX = ScreenBaseX*TilesPerWidth + 17/2;
+    NewCameraP.AbsTileY = ScreenBaseY*TilesPerHeight + 9/2;
+    NewCameraP.AbsTileZ = ScreenBaseZ;
     SetCamera(GameState, NewCameraP);
 
     Memory->IsInitialized = true;

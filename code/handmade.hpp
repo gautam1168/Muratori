@@ -1,6 +1,6 @@
 #if !defined(HANDMADE_HPP)
 
-// #include <stdint.h>
+#include <stdint.h>
 
 #if !defined(COMPILER_MSVC)
 #define COMPILER_MSVC 0
@@ -35,6 +35,8 @@ typedef char int8;
 typedef short int16;
 typedef long int32;
 typedef long long int64;
+
+// #define UINT32_MAX ULONG_MAX
 
 typedef size_t memory_index;
 /*
