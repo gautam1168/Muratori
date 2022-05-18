@@ -89,8 +89,9 @@ GetTileChunk(tile_map *TileMap, uint32 TileChunkX, uint32 TileChunkY, uint32 Til
       }
       Chunk->NextInHash = 0;
       break;
+    } else if (!Arena && Chunk->TileChunkX == 0) {
+      Chunk = 0;
     }
-    
   } while (Chunk);
   return Chunk;
 }
@@ -190,9 +191,13 @@ inline tile_map_difference
 Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
   tile_map_difference Result;
 
-  v2 dTileXY = {(real32)A->AbsTileX - (real32)B->AbsTileX,
-    (real32)A->AbsTileY - (real32)B->AbsTileY};
-  real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
+  // v2 dTileXY = {(real32)((real64)A->AbsTileX - (real64)B->AbsTileX),
+  //   (real32)((real64)A->AbsTileY - (real64)B->AbsTileY)};
+  // real32 dTileZ = (real32)((real64)A->AbsTileZ - (real64)B->AbsTileZ);
+
+  v2 dTileXY = {(real32)((real64)A->AbsTileX - (real64)B->AbsTileX),
+    (real32)((real64)A->AbsTileY - (real64)B->AbsTileY)};
+  real32 dTileZ = (real32)((real64)A->AbsTileZ - (real64)B->AbsTileZ);
 
   Result.dXY = TileMap->TileSideInMeters * dTileXY + (A->Offset_ - B->Offset_);
   Result.dZ = TileMap->TileSideInMeters * dTileZ;
