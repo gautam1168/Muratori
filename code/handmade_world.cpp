@@ -1,31 +1,60 @@
+inline bool
+IsCanonical(world *World, real32 TileRel)
+{
+  bool Result = (TileRel >= -0.5f * World->ChunkSideInMeters) &&
+                (TileRel <= 0.5f * World->ChunkSideInMeters);
+  return Result;
+}
+
+inline bool
+IsCanonical(world *World, v2 Offset)
+{
+  bool Result = IsCanonical(World, Offset.X) && IsCanonical(World, Offset.Y);
+  return Result;
+}
+
 inline void
 ReCanonicalizeCoord(world *World, uint32 *Tile, real32 *TileRel) {
 
   // Number of tiles to move out from current tile
-  int32 Offset = RoundReal32ToInt32(*TileRel / World->TileSideInMeters);
+  int32 Offset = RoundReal32ToInt32(*TileRel / World->ChunkSideInMeters);
 
   *Tile += Offset;
-  *TileRel -= Offset*World->TileSideInMeters;
+  *TileRel -= Offset*World->ChunkSideInMeters;
 
-  Assert(*TileRel >= -0.5f * World->TileSideInMeters);
-  Assert(*TileRel <= 0.5f * World->TileSideInMeters);
+  Assert(IsCanonical(World, *TileRel));
 }
 
 internal world_position
 MapIntoTileSpace(world *World, world_position BasePos, v2 Offset) { 
   world_position Result = BasePos;
   Result.Offset_ += Offset;
-  ReCanonicalizeCoord(World, &Result.AbsTileX, &Result.Offset_.X);
-  ReCanonicalizeCoord(World, &Result.AbsTileY, &Result.Offset_.Y);
+  ReCanonicalizeCoord(World, &Result.ChunkX, &Result.Offset_.X);
+  ReCanonicalizeCoord(World, &Result.ChunkY, &Result.Offset_.Y);
   return Result;
 }
 
 
 
-#define TILE_CHUNK_SAFE_MARGIN 256
+#define TILE_CHUNK_SAFE_MARGIN (INT32_MAX/64)
+#define TILE_CHUNK_UNINITIALIZED INT32_MAX
+#define TILES_PER_CHUNK 16
+
+inline bool
+AreOnSameChunk(world *World, world_position *A, world_position *B) {
+  Assert(IsCanonical(World, A->Offset_));
+  Assert(IsCanonical(World, B->Offset_));
+  bool Result = (
+    A->ChunkX == B->ChunkX &&
+    A->ChunkY == B->ChunkY &&
+    A->ChunkZ == B->ChunkZ
+  );
+
+  return Result;
+}
 
 inline world_chunk * 
-GetTileChunk(world *World, uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ,
+GetWorldChunk(world *World, uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ,
     memory_arena *Arena = 0) {
 
   Assert(ChunkX > TILE_CHUNK_SAFE_MARGIN);
@@ -49,17 +78,15 @@ GetTileChunk(world *World, uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ,
       break;
     }
 
-    if (Arena && Chunk->ChunkX != 0 && !Chunk->NextInHash) 
+    if (Arena && Chunk->ChunkX != TILE_CHUNK_UNINITIALIZED && !Chunk->NextInHash) 
     {
       Chunk->NextInHash = PushStruct(Arena, world_chunk);
       Chunk->ChunkX = 0;
       Chunk = Chunk->NextInHash;
     }
 
-    if (Arena && Chunk->ChunkX == 0)
+    if (Arena && Chunk->ChunkX == TILE_CHUNK_UNINITIALIZED)
     {
-      uint32 TileCount = World->ChunkDim * World->ChunkDim;
-
       Chunk->ChunkX = ChunkX;
       Chunk->ChunkY = ChunkY;
       Chunk->ChunkZ = ChunkZ;
@@ -73,47 +100,22 @@ GetTileChunk(world *World, uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ,
   return Chunk;
 }
 
-#if 0
-inline world_chunk_position 
-GetChunkPositionFor(world *World, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
-  world_chunk_position Result = {};
-  Result.ChunkX = AbsTileX >> World->ChunkShift;
-  Result.ChunkY = AbsTileY >> World->ChunkShift;
-  Result.ChunkZ = AbsTileZ;
-  Result.RelTileX = AbsTileX & World->ChunkMask;
-  Result.RelTileY = AbsTileY & World->ChunkMask;
-  return Result;
-}
-#endif
-
 internal void
 InitializeWorld(world *World, real32 TileSideInMeters)
 {
-  World->ChunkShift = 4;
-  World->ChunkMask = (1 << World->ChunkShift) - 1;
-  World->ChunkDim = (1 << World->ChunkShift);
   World->TileSideInMeters = TileSideInMeters;
+  World->ChunkSideInMeters = 16.0f * TileSideInMeters;
+  World->FirstFree = 0;
 
   for (uint32 TileChunkIndex = 0;
     TileChunkIndex < ArrayCount(World->ChunkHash);
     TileChunkIndex++)
   {
-    World->ChunkHash[TileChunkIndex].ChunkX = 0;
+    World->ChunkHash[TileChunkIndex].ChunkX = TILE_CHUNK_UNINITIALIZED;
+    World->ChunkHash[TileChunkIndex].FirstBlock.EntityCount = 0;
   }
 }
 
-
-
-inline bool
-AreOnSameTile(world_position *A, world_position *B) {
-  bool Result = (
-    A->AbsTileX == B->AbsTileX &&
-    A->AbsTileY == B->AbsTileY &&
-    A->AbsTileZ == B->AbsTileZ
-  );
-
-  return Result;
-}
 
 inline world_difference 
 Subtract(world *World, world_position *A, world_position *B) {
@@ -123,96 +125,98 @@ Subtract(world *World, world_position *A, world_position *B) {
   //   (real32)((real64)A->AbsTileY - (real64)B->AbsTileY)};
   // real32 dTileZ = (real32)((real64)A->AbsTileZ - (real64)B->AbsTileZ);
 
-  v2 dTileXY = {(real32)((real64)A->AbsTileX - (real64)B->AbsTileX),
-    (real32)((real64)A->AbsTileY - (real64)B->AbsTileY)};
-  real32 dTileZ = (real32)((real64)A->AbsTileZ - (real64)B->AbsTileZ);
+  v2 dTileXY = {(real32)((real64)A->ChunkX - (real64)B->ChunkX),
+    (real32)((real64)A->ChunkY - (real64)B->ChunkY)};
+  real32 dTileZ = (real32)((real64)A->ChunkZ - (real64)B->ChunkZ);
 
-  Result.dXY = World->TileSideInMeters * dTileXY + (A->Offset_ - B->Offset_);
-  Result.dZ = World->TileSideInMeters * dTileZ;
+  Result.dXY = World->ChunkSideInMeters * dTileXY + (A->Offset_ - B->Offset_);
+  Result.dZ = World->ChunkSideInMeters * dTileZ;
 
   return Result;
 }
 
 inline world_position
-CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
   world_position Result = {};
-  Result.AbsTileX = AbsTileX;
-  Result.AbsTileY = AbsTileY;
-  Result.AbsTileZ = AbsTileZ;
+  Result.ChunkX = ChunkX;
+  Result.ChunkY = ChunkY;
+  Result.ChunkZ = ChunkZ;
 
   return Result;
 }
-/*
-#if 0
-inline uint32 
-GetTileValueUnchecked(world *TileMap, tile_chunk *TileChunk, uint32 TileX, uint32 TileY) {
-  uint32 TileChunkValue = 0;
-  Assert(TileX < TileMap->ChunkDim && TileY < TileMap->ChunkDim);
-  if (TileChunk && TileChunk->Tiles) {
-    TileChunkValue = TileChunk->Tiles[TileX + TileY * TileMap->ChunkDim];
+
+inline world_position 
+ChunkPositionFromTilePosition(world *World, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+{
+  world_position Result = {};
+  Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
+  Result.ChunkY = AbsTileY / TILES_PER_CHUNK;
+  Result.ChunkZ = AbsTileZ / TILES_PER_CHUNK;
+
+  Result.Offset_.X = (real32)(AbsTileX - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
+  Result.Offset_.Y = (real32)(AbsTileY - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
+  return Result;
+}
+
+inline void
+ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
+                     world_position *OldP, world_position *NewP)
+{
+  if (OldP && AreOnSameChunk(World, NewP, OldP))
+  {
+    // Leave entity where it is
   }
-  return TileChunkValue;
-}
-
-inline void 
-SetTileValueUnchecked(world *TileMap, tile_chunk *TileChunk, uint32 TileX, uint32 TileY, uint32 TileValue) {
-  Assert(TileX < TileMap->ChunkDim && TileY < TileMap->ChunkDim);
-  if (TileChunk && TileChunk->Tiles) {
-    TileChunk->Tiles[TileX + TileY * TileMap->ChunkDim] = TileValue;
+  else 
+  {
+    if (OldP) {
+      world_chunk *Chunk = GetWorldChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ, Arena);
+      Assert(Chunk);
+      if (Chunk) 
+      {
+        world_entity_block *FirstBlock = &Chunk->FirstBlock;
+        for (world_entity_block *Block = &Chunk->FirstBlock;
+             Block;
+             Block = Block->Next)
+        {
+          for (uint32 Index = 0;
+               Index < Block->EntityCount;
+               Index++)
+          {
+            if (Block->LowEntityIndex[Index] == LowEntityIndex)
+            {
+              Block->LowEntityIndex[Index] = FirstBlock->LowEntityIndex[--FirstBlock->EntityCount];
+              if (FirstBlock->EntityCount == 0)
+              {
+                world_entity_block *NextBlock = FirstBlock->Next;
+                *FirstBlock = *NextBlock;
+                NextBlock->Next = World->FirstFree;
+                World->FirstFree = NextBlock;
+              }
+              Block = 0;
+              break;
+            }
+          }
+        }
+      }
+    }
+    world_chunk *Chunk = GetWorldChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
+    world_entity_block *Block = &Chunk->FirstBlock;
+    if (Block->EntityCount == ArrayCount(Block->LowEntityIndex))
+    {
+      world_entity_block *OldBlock = World->FirstFree;
+      if (OldBlock)
+      {
+        World->FirstFree = OldBlock->Next;
+      }
+      else
+      {
+        PushStruct(Arena, world_entity_block);
+      }
+      *OldBlock = *Block;
+      Block->Next = OldBlock;
+      Block->EntityCount = 0;
+    }
+    Assert(Block->EntityCount != ArrayCount(Block->LowEntityIndex));
+    Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
   }
 }
-
-internal void 
-SetTileValue(world *TileMap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY, uint32 TileValue) {
-  if (TileChunk) {
-    SetTileValueUnchecked(TileMap, TileChunk, TestTileX, TestTileY, TileValue);
-  }
-}
-
-internal uint32 
-GetTileValue(world *TileMap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY) {
-  uint32 TileChunkValue = 0;
-
-  if (TileChunk) {
-    TileChunkValue = GetTileValueUnchecked(TileMap, TileChunk, TestTileX, TestTileY);
-  }
-  return TileChunkValue;
-}
-
-internal uint32 
-GetTileValue(world *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
-  tile_chunk_position ChunkPos = GetChunkPositionFor(TileMap, AbsTileX, AbsTileY, AbsTileZ);
-  tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX, ChunkPos.TileChunkY, ChunkPos.TileChunkZ);
-  uint32 TileChunkValue = GetTileValue(TileMap, TileChunk, ChunkPos.RelTileX, ChunkPos.RelTileY);
-  return TileChunkValue;
-}
-
-internal uint32 
-GetTileValue(world *TileMap, world_position Position) {
-  uint32 TileChunkValue = GetTileValue(TileMap, Position.AbsTileX, Position.AbsTileY, Position.AbsTileZ);
-  return TileChunkValue;
-}
-
-internal bool
-IsTileValueEmpty(uint32 TileValue) {
-  bool Empty = ((TileValue == 1) ||
-                (TileValue == 3) ||
-                (TileValue == 4));
-  return Empty;
-}
-
-internal bool 
-IsTileMapPointEmpty(world *TileMap, world_position CanPos) {
-  uint32 TileChunkValue = GetTileValue(TileMap, CanPos);
-  bool Empty = IsTileValueEmpty(TileChunkValue);
-  return Empty;
-}
-
-internal void
-SetTileValue(memory_arena *Arena, world *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ, uint32 TileValue) {
-  tile_chunk_position ChunkPos = GetChunkPositionFor(TileMap, AbsTileX, AbsTileY, AbsTileZ);
-  tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX, ChunkPos.TileChunkY, ChunkPos.TileChunkZ, Arena);
-  SetTileValue(TileMap, TileChunk, ChunkPos.RelTileX, ChunkPos.RelTileY, TileValue);
-}
-#endif
-*/

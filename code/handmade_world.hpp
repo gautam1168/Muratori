@@ -10,9 +10,9 @@ struct world_difference
 struct world_position
 {
   // Fixed point tile locations. High bits are tile chunk index and low bits are tile index in the chunk
-  uint32 AbsTileX;
-  uint32 AbsTileY;
-  uint32 AbsTileZ;
+  uint32 ChunkX;
+  uint32 ChunkY;
+  uint32 ChunkZ;
 
   v2 Offset_;
 };
@@ -20,7 +20,7 @@ struct world_position
 struct world_entity_block
 {
   uint32 EntityCount;
-  uint32 LowEntityIindex[16];
+  uint32 LowEntityIndex[16];
   world_entity_block *Next;
 };
 
@@ -37,11 +37,9 @@ struct world_chunk
 
 struct world
 {
-  uint32 ChunkShift;
-  uint32 ChunkMask;
-  uint32 ChunkDim;
-
   real32 TileSideInMeters;
+  real32 ChunkSideInMeters;
+  world_entity_block *FirstFree;
 
   world_chunk ChunkHash[4096];
 };
