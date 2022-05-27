@@ -13,6 +13,15 @@ struct v2
   inline v2 &operator+=(v2 A);
 };
 
+inline v2
+V2(real32 x, real32 y)
+{
+  v2 Result;
+  Result.X = x;
+  Result.Y = y;
+  return Result;
+}
+
 inline v2 operator*(real32 m, v2 A) {
   v2 Result;
 
@@ -85,6 +94,27 @@ struct rectangle2 {
   v2 Min;
   v2 Max;
 };
+
+inline v2
+GetMinCorner(rectangle2 Rect)
+{
+  v2 Result = Rect.Min;
+  return Result;
+}
+
+inline v2
+GetMaxCorner(rectangle2 Rect)
+{
+  v2 Result = Rect.Max;
+  return Result;
+}
+
+inline v2
+GetCenter(rectangle2 Rect)
+{
+  v2 Result = 0.5f * (Rect.Max + Rect.Min);
+  return Result;
+}
 
 inline rectangle2
 RectCenterHalfDim(v2 Center, v2 HalfDim) {

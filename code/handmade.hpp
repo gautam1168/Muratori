@@ -241,6 +241,8 @@ struct game_state
 
   loaded_bitmap Backdrop;
   hero_bitmaps HeroBitmaps[4];
+
+  loaded_bitmap Tree;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
