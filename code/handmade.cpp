@@ -570,15 +570,15 @@ SetCamera(game_state *GameState, world_position NewCameraP) {
   world_position MinChunkP = MapIntoChunkSpace(World, NewCameraP, GetMinCorner(CameraBounds));
   world_position MaxChunkP = MapIntoChunkSpace(World, NewCameraP, GetMaxCorner(CameraBounds));
 
-  for (uint32 ChunkY = MinChunkP.ChunkY;
+  for (int32 ChunkY = MinChunkP.ChunkY;
        ChunkY <= MaxChunkP.ChunkY;
        ChunkY++)
   {
-    for (uint32 ChunkX = MinChunkP.ChunkX;
+    for (int32 ChunkX = MinChunkP.ChunkX;
        ChunkX <= MaxChunkP.ChunkX;
        ChunkX++)
     {
-      world_chunk *Chunk = GetWorldChunk(World, ChunkX, ChunkY, NewCameraP.ChunkZ);
+      world_chunk *Chunk = GetWorldChunk(World, ChunkX, ChunkY, NewCameraP.ChunkZ, &GameState->WorldArena);
       if (Chunk)
       {
         for (world_entity_block *Block = &Chunk->FirstBlock;
@@ -665,9 +665,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
     uint32 TilesPerWidth = 17;
     uint32 TilesPerHeight = 9;
-    uint32 ScreenBaseX = (INT16_MAX / TilesPerWidth) / 2;
-    uint32 ScreenBaseY = (INT16_MAX / TilesPerHeight) / 2;
-    uint32 ScreenBaseZ = INT16_MAX / 2;
+    uint32 ScreenBaseX = 0;
+    uint32 ScreenBaseY = 0;
+    uint32 ScreenBaseZ = 0;
     uint32 ScreenX = ScreenBaseX;
     uint32 ScreenY = ScreenBaseY;
     uint32 AbsTileZ = ScreenBaseZ;
@@ -680,7 +680,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     bool DoorDown = false;
 
     for (uint32 ScreenIndex = 0;
-      ScreenIndex < 2000;
+      ScreenIndex < 2;
       ScreenIndex++) 
     {
       Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
@@ -905,7 +905,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
       hero_bitmaps HeroBitmap = GameState->HeroBitmaps[HighEntity->FacingDirection];
       DrawBitmap(Buffer, &HeroBitmap.Body, PlayerGroundPointX, PlayerGroundPointY, HeroBitmap.AlignX, HeroBitmap.AlignY);
     }
-    else
+    else if (LowEntity->Type == EntityType_Wall)
     {
       DrawRectangle(Buffer,
                     v2{PlayerLeft, PlayerTop},

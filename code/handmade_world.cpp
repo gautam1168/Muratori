@@ -14,7 +14,7 @@ IsCanonical(world *World, v2 Offset)
 }
 
 inline void
-ReCanonicalizeCoord(world *World, uint32 *Tile, real32 *TileRel) {
+ReCanonicalizeCoord(world *World, int32 *Tile, real32 *TileRel) {
 
   // Number of tiles to move out from current tile
   int32 Offset = RoundReal32ToInt32(*TileRel / World->ChunkSideInMeters);
@@ -36,7 +36,7 @@ MapIntoChunkSpace(world *World, world_position BasePos, v2 Offset) {
 
 
 
-#define TILE_CHUNK_SAFE_MARGIN 16 
+#define TILE_CHUNK_SAFE_MARGIN (INT32_MAX/64) 
 #define TILE_CHUNK_UNINITIALIZED INT32_MAX
 #define TILES_PER_CHUNK 16
 
@@ -54,18 +54,18 @@ AreOnSameChunk(world *World, world_position *A, world_position *B) {
 }
 
 inline world_chunk * 
-GetWorldChunk(world *World, uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ,
+GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
     memory_arena *Arena = 0) {
 
-  Assert(ChunkX > TILE_CHUNK_SAFE_MARGIN);
-  Assert(ChunkY > TILE_CHUNK_SAFE_MARGIN);
-  Assert(ChunkZ > TILE_CHUNK_SAFE_MARGIN);
-  Assert(ChunkX < (UINT32_MAX - TILE_CHUNK_SAFE_MARGIN));
-  Assert(ChunkY < (UINT32_MAX - TILE_CHUNK_SAFE_MARGIN));
-  Assert(ChunkZ < (UINT32_MAX - TILE_CHUNK_SAFE_MARGIN));
+  Assert(ChunkX > -TILE_CHUNK_SAFE_MARGIN);
+  Assert(ChunkY > -TILE_CHUNK_SAFE_MARGIN);
+  Assert(ChunkZ > -TILE_CHUNK_SAFE_MARGIN);
+  Assert(ChunkX < TILE_CHUNK_SAFE_MARGIN);
+  Assert(ChunkY < TILE_CHUNK_SAFE_MARGIN);
+  Assert(ChunkZ < TILE_CHUNK_SAFE_MARGIN);
 
-  uint32 HashValue = 19 * ChunkX + 7 * ChunkY + 3 * ChunkZ;
-  uint32 HashSlot = HashValue & (ArrayCount(World->ChunkHash) - 1);
+  int32 HashValue = 19 * ChunkX + 7 * ChunkY + 3 * ChunkZ;
+  int32 HashSlot = HashValue & (ArrayCount(World->ChunkHash) - 1);
   Assert(HashSlot < ArrayCount(World->ChunkHash));
 
   world_chunk *Chunk = World->ChunkHash + HashSlot;
@@ -81,7 +81,7 @@ GetWorldChunk(world *World, uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ,
     if (Arena && Chunk->ChunkX != TILE_CHUNK_UNINITIALIZED && !Chunk->NextInHash) 
     {
       Chunk->NextInHash = PushStruct(Arena, world_chunk);
-      Chunk->ChunkX = 0;
+      Chunk->ChunkX = TILE_CHUNK_UNINITIALIZED;
       Chunk = Chunk->NextInHash;
     }
 
@@ -210,7 +210,8 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
       }
       else
       {
-        PushStruct(Arena, world_entity_block);
+        World->FirstFree = PushStruct(Arena, world_entity_block);
+        OldBlock = World->FirstFree;
       }
       *OldBlock = *Block;
       Block->Next = OldBlock;

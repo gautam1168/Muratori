@@ -10,9 +10,9 @@ struct world_difference
 struct world_position
 {
   // Fixed point tile locations. High bits are tile chunk index and low bits are tile index in the chunk
-  uint32 ChunkX;
-  uint32 ChunkY;
-  uint32 ChunkZ;
+  int32 ChunkX;
+  int32 ChunkY;
+  int32 ChunkZ;
 
   v2 Offset_;
 };
@@ -26,9 +26,9 @@ struct world_entity_block
 
 struct world_chunk
 {
-  uint32 ChunkX;
-  uint32 ChunkY;
-  uint32 ChunkZ;
+  int32 ChunkX;
+  int32 ChunkY;
+  int32 ChunkZ;
 
   world_entity_block FirstBlock;
 
