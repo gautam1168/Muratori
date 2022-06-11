@@ -882,22 +882,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters))
     {
-      NewCameraP.ChunkX += 17;
+      NewCameraP.Offset_.X += 17.0f * World->TileSideInMeters;
     }
 
     if (CameraFollowingEntity.High->P.X < (-9.0f * World->TileSideInMeters))
     {
-      NewCameraP.ChunkX -= 17;
+      NewCameraP.Offset_.X -= 17.0f * World->TileSideInMeters;
     }
 
     if (CameraFollowingEntity.High->P.Y > (5.0f * World->TileSideInMeters))
     {
-      NewCameraP.ChunkY += 9;
+      NewCameraP.Offset_.Y += 9.0f * World->TileSideInMeters;
     }
 
     if (CameraFollowingEntity.High->P.Y < (-5.0f * World->TileSideInMeters))
     {
-      NewCameraP.ChunkY -= 9;
+      NewCameraP.Offset_.Y -= 9.0f * World->TileSideInMeters;
     }
 
     SetCamera(GameState, NewCameraP);
