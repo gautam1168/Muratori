@@ -210,9 +210,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
       }
       else
       {
-        World->FirstFree = PushStruct(Arena, world_entity_block);
-        OldBlock = World->FirstFree;
-        World->FirstFree = 0;
+        OldBlock = PushStruct(Arena, world_entity_block);;
       }
       *OldBlock = *Block;
       Block->Next = OldBlock;
