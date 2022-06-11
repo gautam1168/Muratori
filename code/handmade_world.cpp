@@ -146,7 +146,7 @@ CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
 }
 
 inline world_position 
-ChunkPositionFromTilePosition(world *World, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ)
 {
   world_position Result = {};
   Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
@@ -212,6 +212,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
       {
         World->FirstFree = PushStruct(Arena, world_entity_block);
         OldBlock = World->FirstFree;
+        World->FirstFree = 0;
       }
       *OldBlock = *Block;
       Block->Next = OldBlock;
