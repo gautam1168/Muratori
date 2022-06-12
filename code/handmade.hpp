@@ -182,15 +182,16 @@ struct loaded_bitmap {
 };
 
 struct hero_bitmaps {
-  int32 AlignX;
-  int32 AlignY;
+  v2 Align;
   loaded_bitmap Body;
 };
 
 enum entity_type {
   EntityType_Null,
   EntityType_Hero,
-  EntityType_Wall
+  EntityType_Wall,
+  EntityType_Familiar,
+  EntityType_Monster
 };
 
 struct high_entity {
@@ -224,6 +225,18 @@ struct low_entity_chunk_reference
   uint32 EntityIndexInChunk;
 };
 
+struct entity_visible_piece {
+  loaded_bitmap *Bitmap;
+  v2 Offset;
+  real32 Z;
+  real32 Alpha;
+};
+
+struct entity_visible_piece_group {
+  int32 Count;
+  entity_visible_piece Pieces[8];
+};
+
 struct game_state
 {
   uint32 ToneHz;
@@ -243,6 +256,9 @@ struct game_state
   hero_bitmaps HeroBitmaps[4];
 
   loaded_bitmap Tree;
+  loaded_bitmap Monster;
+
+  loaded_bitmap FamiliarBitmaps[2];
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)
