@@ -203,6 +203,13 @@ struct high_entity {
   uint32 LowEntityIndex;
 };
 
+#define HIT_POINT_SUB_COUNT 4
+struct hit_point 
+{
+   uint8 Flags;
+   uint8 FilledAmount;
+};
+
 struct low_entity {
   entity_type Type;
   world_position P;
@@ -211,6 +218,9 @@ struct low_entity {
   bool Collides;
   int32 dAbsTileZ; // for stairs
   uint32 HighEntityIndex;
+
+  uint32 HitPointMax;
+  hit_point HitPoint[16];
 };
 
 struct entity {
@@ -225,22 +235,11 @@ struct low_entity_chunk_reference
   uint32 EntityIndexInChunk;
 };
 
-struct entity_visible_piece {
-  loaded_bitmap *Bitmap;
-  v2 Offset;
-  real32 Z;
-  real32 Alpha;
-};
-
-struct entity_visible_piece_group {
-  int32 Count;
-  entity_visible_piece Pieces[8];
-};
-
 struct game_state
 {
   uint32 ToneHz;
   memory_arena WorldArena;
+  real32 MetersToPixels;
   world *World;
   uint32 CamerFollowingEntityIndex;
   world_position CameraP;
@@ -259,6 +258,21 @@ struct game_state
   loaded_bitmap Monster;
 
   loaded_bitmap FamiliarBitmaps[2];
+};
+
+struct entity_visible_piece {
+  loaded_bitmap *Bitmap;
+  v2 Offset;
+  real32 OffsetZ;
+  real32 Z;
+  real32 R, G, B, A;
+  v2 Dim;
+};
+
+struct entity_visible_piece_group {
+  int32 Count;
+  entity_visible_piece Pieces[32];
+  game_state *GameState;
 };
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *FileName)

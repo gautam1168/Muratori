@@ -13,12 +13,65 @@ struct v2
   inline v2 &operator+=(v2 A);
 };
 
+struct v3
+{
+  union {
+    struct {
+      real32 X, Y, Z;
+    };
+    struct {
+      real32 R, G, B;
+    };
+    real32 E[3];
+  };
+
+  inline v2 &operator*=(real32 m);
+  inline v2 &operator+=(v2 A);
+};
+
+struct v4
+{
+  union {
+    struct {
+      real32 X, Y, Z, W;
+    };
+    struct {
+      real32 R, G, B, A;
+    };
+    real32 E[4];
+  };
+
+  inline v2 &operator*=(real32 m);
+  inline v2 &operator+=(v2 A);
+};
+
 inline v2
 V2(real32 x, real32 y)
 {
   v2 Result;
   Result.X = x;
   Result.Y = y;
+  return Result;
+}
+
+inline v3
+V2(real32 x, real32 y, real32 z)
+{
+  v3 Result;
+  Result.X = x;
+  Result.Y = y;
+  Result.Z = z;
+  return Result;
+}
+
+inline v4
+V2(real32 x, real32 y, real32 z, real32 w)
+{
+  v4 Result;
+  Result.X = x;
+  Result.Y = y;
+  Result.Z = z;
+  Result.W = w;
   return Result;
 }
 
