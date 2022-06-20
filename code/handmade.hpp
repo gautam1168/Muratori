@@ -191,13 +191,15 @@ enum entity_type {
   EntityType_Hero,
   EntityType_Wall,
   EntityType_Familiar,
-  EntityType_Monster
+  EntityType_Monster,
+  EntityType_Sword
 };
 
 struct high_entity {
   bool Exists;
   v2 P;
   v2 dP;
+  real32 dZ;
   uint32 ChunkZ;
   uint32 FacingDirection;
   uint32 LowEntityIndex;
@@ -221,6 +223,9 @@ struct low_entity {
 
   uint32 HitPointMax;
   hit_point HitPoint[16];
+
+  uint32 SwordLowIndex;
+  real32 DistanceRemaining;
 };
 
 struct entity {
@@ -256,6 +261,7 @@ struct game_state
 
   loaded_bitmap Tree;
   loaded_bitmap Monster;
+  loaded_bitmap Sword;
 
   loaded_bitmap FamiliarBitmaps[2];
 };
@@ -271,7 +277,7 @@ struct entity_visible_piece {
 
 struct entity_visible_piece_group {
   int32 Count;
-  entity_visible_piece Pieces[32];
+  entity_visible_piece Pieces[16];
   game_state *GameState;
 };
 
