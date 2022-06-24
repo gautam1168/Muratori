@@ -141,6 +141,7 @@ struct debug_read_file_result {
 
 #include "handmade_intrinsics.hpp"
 #include "handmade_world.hpp"
+#include "handmade_sim_region.hpp"
 
 struct game_input {
   game_button_state MouseButtons[5];
@@ -195,16 +196,6 @@ enum entity_type {
   EntityType_Sword
 };
 
-struct high_entity {
-  bool Exists;
-  v2 P;
-  v2 dP;
-  real32 dZ;
-  uint32 ChunkZ;
-  uint32 FacingDirection;
-  uint32 LowEntityIndex;
-};
-
 #define HIT_POINT_SUB_COUNT 4
 struct hit_point 
 {
@@ -215,23 +206,20 @@ struct hit_point
 struct low_entity {
   entity_type Type;
   world_position P;
+  v2 dP;
   real32 Width, Height;
+
+  uint32 FacingDirection;
+  real32 tBob;
 
   bool Collides;
   int32 dAbsTileZ; // for stairs
-  uint32 HighEntityIndex;
 
   uint32 HitPointMax;
   hit_point HitPoint[16];
 
   uint32 SwordLowIndex;
   real32 DistanceRemaining;
-};
-
-struct entity {
-  uint32 LowIndex;
-  low_entity *Low;
-  high_entity *High;
 };
 
 struct low_entity_chunk_reference
@@ -253,8 +241,7 @@ struct game_state
   uint32 LowEntityCount;
   low_entity LowEntities[100000];
 
-  uint32 HighEntityCount;
-  high_entity HighEntities_[256];
+  
 
   loaded_bitmap Backdrop;
   hero_bitmaps HeroBitmaps[4];
