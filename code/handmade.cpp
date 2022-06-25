@@ -230,17 +230,7 @@ DrawBitmap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
   }
 }
 
-inline low_entity *
-GetLowEntity(game_state *GameState, uint32 LowIndex)
-{
-  low_entity *Result = 0;
-  entity Entity = {};
-  if (LowIndex > 0 && (LowIndex < GameState->LowEntityCount))
-  {
-    Result = GameState->LowEntities + LowIndex;
-  }
-  return Result;
-}
+
 
 inline v2
 GetCameraSpaceP(game_state *GameState, low_entity *LowEntity)
@@ -357,34 +347,8 @@ AddFamiliar(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsT
   return EntityResult;
 }
 
-internal bool
-TestWall(real32 WallX, real32 RelX, real32 RelY, real32 PlayerDeltaX, real32 PlayerDeltaY,
-         real32 *tMin, real32 MinY, real32 MaxY)
-{
-  bool Hit = false;
-  real32 tEpsilon = 0.01f;
-  if (PlayerDeltaX != 0.0f)
-  {
-    real32 tResult = (WallX - RelX) / PlayerDeltaX;
-    real32 Y = RelY + tResult * PlayerDeltaY;
-    if (tResult >= 0.0f && *tMin > tResult)
-    {
-      if ((Y >= MinY) && (Y <= MaxY))
-      {
-        *tMin = Maximum(0.0f, tResult - tEpsilon);
-        Hit = true;
-      }
-    }
-  }
-  return Hit;
-}
 
-struct move_spec 
-{
-  bool UnitMaxAccelVector;
-  real32 Speed;
-  real32 Drag;
-};
+
 
 inline move_spec
 DefaultMoveSpec()
@@ -396,134 +360,7 @@ DefaultMoveSpec()
   return Result;
 }
 
-internal void
-MoveEntity(game_state *GameState, entity Entity, real32 dt, move_spec *MoveSpec, v2 ddP)
-{
-  world *World = GameState->World;
-  if (MoveSpec->UnitMaxAccelVector)
-  {
-    real32 ddPLength = LengthSq(ddP);
-    if (ddPLength > 1.0f)
-    {
-      ddP = (1.0f / SquareRoot(ddPLength)) * ddP;
-    }
-  }
 
-  ddP *= MoveSpec->Speed;
-  ddP += -MoveSpec->Drag * Entity.High->dP;
-
-  v2 OldPlayerP = Entity.High->P;
-  v2 PlayerDelta = dt * Entity.High->dP + 0.5f * Square(dt) * ddP;
-  Entity.High->dP = Entity.High->dP + dt * ddP;
-
-  v2 NewPlayerP = OldPlayerP + PlayerDelta;
-
-  real32 tRemaining = 1.0f;
-  for (uint32 Iteration = 0;
-       (Iteration < 4) && (tRemaining > 0.0f);
-       Iteration++)
-  {
-
-    real32 tMin = 1.0f;
-    v2 WallNormal = {};
-    uint32 HitHighEntityIndex = 0;
-    if (Entity.Low->Collides)
-    {
-      for (uint32 TestHighEntityIndex = 1;
-           TestHighEntityIndex < GameState->HighEntityCount;
-           TestHighEntityIndex++)
-      {
-        if (TestHighEntityIndex != Entity.Low->HighEntityIndex)
-        {
-          entity TestEntity;
-          TestEntity.High = GameState->HighEntities_ + TestHighEntityIndex;
-          TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
-          TestEntity.Low = GameState->LowEntities + TestEntity.LowIndex;
-          if (TestEntity.Low->Collides)
-          {
-            real32 DiameterW = TestEntity.Low->Width + Entity.Low->Width;
-            real32 DiameterH = TestEntity.Low->Height + Entity.Low->Height;
-            v2 MinCorner = -0.5f * v2{DiameterW, DiameterH};
-            v2 MaxCorner = 0.5f * v2{DiameterW, DiameterH};
-
-            v2 Rel = Entity.High->P - TestEntity.High->P;
-
-            if (TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                         &tMin, MinCorner.Y, MaxCorner.Y))
-            {
-              WallNormal = v2{-1.0f, 0.0f};
-              HitHighEntityIndex = TestHighEntityIndex;
-            }
-
-            if (TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                         &tMin, MinCorner.Y, MaxCorner.Y))
-            {
-              WallNormal = v2{1.0f, 0.0f};
-              HitHighEntityIndex = TestHighEntityIndex;
-            }
-
-            if (TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                         &tMin, MinCorner.X, MaxCorner.X))
-            {
-
-              WallNormal = v2{0.0f, -1.0f};
-              HitHighEntityIndex = TestHighEntityIndex;
-            }
-
-            if (TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                         &tMin, MinCorner.X, MaxCorner.X))
-            {
-
-              WallNormal = v2{0.0f, 1.0f};
-              HitHighEntityIndex = TestHighEntityIndex;
-            }
-          }
-        }
-      }
-    }
-
-    Entity.High->P += tMin * PlayerDelta;
-    if (HitHighEntityIndex)
-    {
-      Entity.High->dP = Entity.High->dP - 1 * Inner(Entity.High->dP, WallNormal) * WallNormal;
-      PlayerDelta = PlayerDelta - 1 * Inner(PlayerDelta, WallNormal) * WallNormal;
-      tRemaining -= tMin * tRemaining;
-      high_entity *HitHigh = GameState->HighEntities_ + HitHighEntityIndex;
-      low_entity *HitLow = GameState->LowEntities + HitHigh->LowEntityIndex;
-      // Entity.High->AbsTileZ += HitLow->dAbsTileZ;
-    }
-    else
-    {
-      break;
-    }
-  }
-
-  if (AbsoluteValue(Entity.High->dP.X) > AbsoluteValue(Entity.High->dP.Y))
-  {
-    if (Entity.High->dP.X > 0)
-    {
-      Entity.High->FacingDirection = 0;
-    }
-    else
-    {
-      Entity.High->FacingDirection = 2;
-    }
-  }
-  else if (AbsoluteValue(Entity.High->dP.X) < AbsoluteValue(Entity.High->dP.Y))
-  {
-    if (Entity.High->dP.Y > 0)
-    {
-      Entity.High->FacingDirection = 1;
-    }
-    else
-    {
-      Entity.High->FacingDirection = 3;
-    }
-  }
-
-  world_position NewP = MapIntoChunkSpace(GameState->World, GameState->CameraP, Entity.High->P);
-  ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, Entity.Low, &Entity.Low->P, &NewP);
-}
 
 internal void
 SimCameraRegion(game_state *GameState)
@@ -573,21 +410,6 @@ inline void
 PushRect(entity_visible_piece_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 Color)
 {
   PushPiece(Group, 0, Offset, OffsetZ, v2{0, 0}, Dim, Color);
-}
-
-inline entity
-EntityFromHighIndex(game_state *GameState, uint32 HightEntityIndex) 
-{
-  entity Result = {};
-  if (HightEntityIndex) 
-  {
-    Assert(HightEntityIndex < ArrayCount(GameState->HighEntities_));
-
-    Result.High = GameState->HighEntities_ + HightEntityIndex;
-    Result.LowIndex = Result.High->LowEntityIndex;
-    Result.Low = GameState->LowEntities + Result.LowIndex;
-  }
-  return Result;
 }
 
 inline void
@@ -874,8 +696,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, ScreenBaseZ);
     AddFamiliar(GameState, CameraTileX - 2, CameraTileY + 2, ScreenBaseZ);
-
-    SetCamera(GameState, NewCameraP);
 
     Memory->IsInitialized = true;
   }

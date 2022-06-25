@@ -187,39 +187,11 @@ struct hero_bitmaps {
   loaded_bitmap Body;
 };
 
-enum entity_type {
-  EntityType_Null,
-  EntityType_Hero,
-  EntityType_Wall,
-  EntityType_Familiar,
-  EntityType_Monster,
-  EntityType_Sword
-};
 
-#define HIT_POINT_SUB_COUNT 4
-struct hit_point 
-{
-   uint8 Flags;
-   uint8 FilledAmount;
-};
 
 struct low_entity {
-  entity_type Type;
   world_position P;
-  v2 dP;
-  real32 Width, Height;
-
-  uint32 FacingDirection;
-  real32 tBob;
-
-  bool Collides;
-  int32 dAbsTileZ; // for stairs
-
-  uint32 HitPointMax;
-  hit_point HitPoint[16];
-
-  uint32 SwordLowIndex;
-  real32 DistanceRemaining;
+  sim_entity Sim; 
 };
 
 struct low_entity_chunk_reference
@@ -310,6 +282,18 @@ GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
 
 // void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer);
 // void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
+
+inline low_entity *
+GetLowEntity(game_state *GameState, uint32 LowIndex)
+{
+  low_entity *Result = 0;
+  entity Entity = {};
+  if (LowIndex > 0 && (LowIndex < GameState->LowEntityCount))
+  {
+    Result = GameState->LowEntities + LowIndex;
+  }
+  return Result;
+}
 
 
 #define HANDMADE_HPP
